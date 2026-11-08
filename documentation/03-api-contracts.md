@@ -335,6 +335,21 @@ Error codes used by these endpoints: `VALIDATION_ERROR` (422), `NOT_FOUND` (404)
 Implementation notes, concurrency proof and mobile screen map:
 [`07-phase3-ride-system.md`](07-phase3-ride-system.md).
 
+## 3.13 Maps, APK download & password-reset fallback — added in Phase 14 ✅
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| GET | `/maps/search` | member | place search (geocoding) via the configured provider |
+| GET | `/maps/reverse` | member | coordinates → address |
+| GET | `/maps/tiles/{z}/{x}/{y}.png` | public | map tile proxy (`.png`), keeps provider keys on the server |
+| GET | `/app/download` | public | `{available, url, version, updated_at}` for the web app's APK button |
+| GET | `/admin/integrations/maps` | admin | current map provider (key shown masked only) |
+| PUT | `/admin/integrations/maps` | admin | change provider / key — no rebuild or redeploy |
+| POST | `/admin/integrations/maps/test` | admin | validate the key with a live geocode call |
+| GET | `/admin/integrations/app-download` | admin | current APK link and version |
+| PUT | `/admin/integrations/app-download` | admin | `{url, version}`; empty `url` withdraws the button |
+| POST | `/admin/users/{id}/password-reset-code` | admin | one-time 30-minute reset code when email is not set up; refused for non-active accounts |
+
 ## 3.12 Contract ownership
 
 Every endpoint above is mirrored by a Zod schema in `mobile/src/lib/schemas`

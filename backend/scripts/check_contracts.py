@@ -32,7 +32,7 @@ METHODS = ("GET", "POST", "PATCH", "PUT", "DELETE")
 
 #: `GET /admin/users/{user_id}` / "| POST | `/admin/users/{id}/verify` |" / `GET /rides?status=`
 ROUTE_RE = re.compile(
-    r"\b(" + "|".join(METHODS) + r")\b[\s|`]*((?:`)?/(?:api/v1/)?[a-z0-9_{}\-/]*)",
+    r"\b(" + "|".join(METHODS) + r")\b[\s|`]*((?:`)?/(?:api/v1/)?[a-z0-9_{}\-/.]*)",
     re.IGNORECASE,
 )
 #: any backticked absolute path, with or without a method next to it
