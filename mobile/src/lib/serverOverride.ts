@@ -94,7 +94,7 @@ export async function probeServer(rawUrl: string): Promise<string> {
   try {
     const response = await fetch(`${url}/health`, {
       signal: controller.signal,
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', 'ngrok-skip-browser-warning': '1' },
     });
     return response.ok ? 'reachable' : `HTTP ${response.status}`;
   } catch (error) {

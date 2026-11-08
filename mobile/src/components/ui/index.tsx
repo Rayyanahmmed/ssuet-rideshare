@@ -215,7 +215,7 @@ function useWebAuthedPhoto(uri: string | null, token: string | null): { src: str
       return undefined;
     }
     let cancelled = false;
-    fetch(uri, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(uri, { headers: { Authorization: `Bearer ${token}`, 'ngrok-skip-browser-warning': '1' } })
       .then((response) => {
         if (!response.ok) throw new Error(`photo ${response.status}`);
         return response.blob();

@@ -13,7 +13,12 @@ import { loadTokens, saveTokens, clearTokens } from '@/lib/secureStore';
 export const api = axios.create({
   baseURL: env.apiUrl,
   timeout: 15000,
-  headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+  // ngrok free tunnels show a browser warning page unless this header is sent (harmless elsewhere).
+  headers: {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    'ngrok-skip-browser-warning': '1',
+  },
 });
 
 let accessToken: string | null = null;
@@ -77,7 +82,7 @@ async function refreshSession(): Promise<string | null> {
     const { data } = await axios.post<{ access_token: string; refresh_token: string }>(
       `${getApiBaseUrl()}/auth/refresh`,
       { refresh_token: refreshToken },
-      { headers: { 'Content-Type': 'application/json' }, timeout: 15000 },
+      { headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' }, timeout: 15000 },
     );
     accessToken = data.access_token;
     refreshToken = data.refresh_token;
