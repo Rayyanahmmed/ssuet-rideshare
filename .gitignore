@@ -1,0 +1,55 @@
+# ---------- secrets & environment ----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ---------- uploaded media (Phase 9) ----------
+media/
+backend/media/
+
+# ---------- python ----------
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.db
+*.db-wal
+*.db-shm
+*.sqlite3
+
+# ---------- node / javascript ----------
+node_modules/
+dist/
+build/
+.expo/
+.expo-shared/
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.vite/
+
+# ---------- mobile native output ----------
+android/
+ios/
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# ---------- tooling & OS ----------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.log

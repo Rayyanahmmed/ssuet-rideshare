@@ -1,0 +1,57 @@
+{
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "APP_VARIANT": "development",
+        "EXPO_PUBLIC_API_URL": "http://192.168.100.32:8000/api/v1",
+        "EXPO_PUBLIC_ALLOW_SERVER_OVERRIDE": "1"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
+      },
+      "env": {
+        "APP_VARIANT": "preview",
+        "EXPO_PUBLIC_API_URL": "http://192.168.100.32:8000/api/v1",
+        "EXPO_PUBLIC_ALLOW_SERVER_OVERRIDE": "1"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "APP_VARIANT": "production",
+        "EXPO_PUBLIC_API_URL": "https://ssuet-rideshare-api.onrender.com/api/v1"
+      }
+    },
+    "apk": {
+      "autoIncrement": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "APP_VARIANT": "production",
+        "EXPO_PUBLIC_API_URL": "https://ssuet-rideshare-api.onrender.com/api/v1",
+        "EXPO_PUBLIC_ALLOW_SERVER_OVERRIDE": "0"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

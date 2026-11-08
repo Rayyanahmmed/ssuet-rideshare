@@ -1,0 +1,181 @@
+name: CI
+
+# Every push and every pull request runs the same checks a release does:
+# the backend suite on SQLite **and** PostgreSQL, the migrations, the API↔docs
+# contract audit, and both front-ends type-checked and built.
+#
+# Nothing here needs a secret: no cloud credentials, no API keys, no signing.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+
+jobs:
+  # ---------------------------------------------------------------- backend
+  backend:
+    name: backend · sqlite
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lint for syntax errors
+        run: python -m compileall -q app scripts
+
+      - name: Test suite
+        run: python -m pytest -q
+
+      - name: Coverage gate (must stay >= 90%)
+        run: |
+          python -m pytest -q --cov=app --cov-report=term --cov-fail-under=90 > coverage.txt
+          tail -3 coverage.txt
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-sqlite
+          path: backend/coverage.txt
+          retention-days: 14
+
+  # --------------------------------------------------------------- postgres
+  postgres:
+    name: backend · postgres + migrations
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ssuet
+          POSTGRES_PASSWORD: ssuet
+          POSTGRES_DB: ssuet_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ssuet -d ssuet_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://ssuet:ssuet@localhost:5432/ssuet_test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # The same suite twice: a dialect bug cannot reach production unnoticed.
+      - name: Test suite on PostgreSQL
+        run: python -m pytest -q
+
+      - name: Migrations apply from zero and leave no drift
+        env:
+          DATABASE_URL: postgresql+psycopg://ssuet:ssuet@localhost:5432/ssuet_migrate
+          AUTO_CREATE_TABLES: "false"
+        run: |
+          PGPASSWORD=ssuet psql -h localhost -U ssuet -d ssuet_test -c "CREATE DATABASE ssuet_migrate;"
+          alembic upgrade head
+          alembic check
+          alembic downgrade base
+          alembic upgrade head
+
+  # --------------------------------------------------------------- contract
+  contracts:
+    name: API ↔ documentation contract
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Every shipped route is documented, and vice versa
+        run: python -m scripts.check_contracts
+
+  # ------------------------------------------------------------ front-ends
+  admin:
+    name: admin console
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: admin-dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: admin-dashboard/package-lock.json
+      - run: npm ci
+      - name: Type-check
+        run: npx tsc --noEmit
+      - name: Build
+        run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: admin-dist
+          path: admin-dashboard/dist
+          retention-days: 14
+
+  mobile:
+    name: mobile app
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - name: Type-check
+        run: npx tsc --noEmit
+      - name: Bundle for Android (proves the app still exports)
+        run: npx expo export --platform android --output-dir "$RUNNER_TEMP/expo-export"
+      - name: Report bundle size
+        run: |
+          size=$(find "$RUNNER_TEMP/expo-export" -name '*.hbc' -printf '%s\n' | sort -n | tail -1)
+          echo "Hermes bundle: $((size / 1024)) KB" >> "$GITHUB_STEP_SUMMARY"

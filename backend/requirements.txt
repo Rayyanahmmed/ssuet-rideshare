@@ -1,0 +1,24 @@
+# ---- SSUET RideShare :: Backend (FastAPI) ----
+# Versions are PINNED TO WHAT WAS ACTUALLY TESTED: the 422-test suite and a clean-venv
+# boot ran against exactly these versions. Change a pin, then re-run
+# `python -m pytest -q` and boot the API before shipping.
+fastapi==0.162.0
+uvicorn[standard]==0.54.0
+SQLAlchemy==2.1.8
+alembic==1.20.1
+psycopg[binary]==3.3.8
+pydantic==2.14.2
+pydantic-settings==2.16.2
+email-validator==2.3.0
+python-jose[cryptography]==3.5.0
+argon2-cffi==25.1.0
+python-multipart==0.0.33
+slowapi==0.1.10
+# Profile photo normalisation (decode, orient, crop, resize, strip EXIF).
+Pillow==13.0.0
+websockets==17.4
+httpx==0.28.1
+# ---- test tooling: kept here so one install gives you a working dev box.
+# A server adds gunicorn via requirements-prod.txt (-r requirements.txt + gunicorn). ----
+pytest==9.0.3
+pytest-cov==6.0.0

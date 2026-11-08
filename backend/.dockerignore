@@ -1,0 +1,22 @@
+# Keep the image small and reproducible — only what the API needs at runtime.
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.db
+*.sqlite3
+.env
+.env.*
+!.env.example
+tests/
+
+# Local data never belongs in the image (uploads are stored in the database in production)
+media/
+*.db-wal
+*.db-shm
+*.db-journal

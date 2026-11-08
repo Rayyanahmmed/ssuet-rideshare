@@ -1,0 +1,16 @@
+# Runs deploy/monitor.sh every 15 minutes (doc 18 §5).
+#
+#   sudo systemctl enable --now ssuet-monitor.timer
+#   systemctl list-timers ssuet-monitor.timer
+
+[Unit]
+Description=SSUET RideShare health check every 15 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=15min
+AccuracySec=30s
+Unit=ssuet-monitor.service
+
+[Install]
+WantedBy=timers.target

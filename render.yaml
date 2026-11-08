@@ -1,0 +1,84 @@
+# Render Blueprint — FREE tier: backend API only.
+# Database: Neon (free Postgres, no expiry) — you paste its URL into DATABASE_URL.
+# Photos and documents: stored in the database (bytea), so no persistent disk is needed.
+# Full first-time guide: documentation/27-deploy-vercel-render.md
+#
+# Deploy: Render dashboard → New → Blueprint → select this repo, then fill every `sync: false`.
+# Secrets are never stored in git.
+#
+# Free-tier limits: the service sleeps after 15 min without traffic (first request then
+# takes ~30–60 s). Keep it awake with an uptime pinger on /api/v1/health (see the guide).
+
+services:
+  - type: web
+    name: ssuet-rideshare-api
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/v1/health
+    # Render injects $PORT. Migrations run before the server starts, every deploy.
+    dockerCommand: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'"
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: API_V1_PREFIX
+        value: /api/v1
+      - key: DATABASE_URL
+        sync: false                  # Neon URL, must end with ?sslmode=require
+      - key: DB_POOL_SIZE
+        value: "5"                   # free instance has 512 MB RAM
+      - key: DB_MAX_OVERFLOW
+        value: "5"
+      - key: AUTO_CREATE_TABLES
+        value: "false"
+      - key: JWT_SECRET_KEY
+        generateValue: true          # random value; keep it stable after first deploy
+      - key: JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "30"
+      - key: JWT_REFRESH_TOKEN_EXPIRE_DAYS
+        value: "30"
+      - key: ADMIN_BOOTSTRAP_ENABLED
+        value: "true"                # creates the first admin once; set to false afterwards
+      - key: ADMIN_NAME
+        value: SSUET RideShare Administrator
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false                  # https://<your-web>.vercel.app,https://<your-admin>.vercel.app
+      - key: ADMIN_WEB_URL
+        sync: false                  # https://<your-admin>.vercel.app
+      - key: APP_DEEP_LINK_BASE
+        value: ssuetrideshare://
+      - key: MAX_UPLOAD_BYTES
+        value: "5242880"
+      - key: MEDIA_ORPHAN_RETENTION_DAYS
+        value: "7"
+      - key: RATE_LIMIT_ENABLED
+        value: "true"
+      - key: MAINTENANCE_INTERVAL_MINUTES
+        value: "10"
+      - key: RIDE_AUTO_EXPIRE_GRACE_MINUTES
+        value: "60"
+      - key: MAP_PROVIDER
+        value: osm                   # change later in Admin → Map API, no redeploy
+      - key: EXPO_PUSH_ENABLED
+        value: "true"
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_USE_TLS
+        value: "true"
+      - key: EMAIL_FROM
+        sync: false

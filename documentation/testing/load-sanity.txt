@@ -1,0 +1,41 @@
+SSUET RideShare — load sanity on the Explore read paths
+=======================================================
+Date         : 2026-11-06
+Command      : python -m scripts.load_check seed --drivers 40 --rides-per-driver 10
+               python -m scripts.load_check run --requests 400 --concurrency 20
+Dataset      : 40 verified drivers, 40 verified cars, 400 OPEN journeys, 1 passenger
+Database     : SQLite (ssuet_dev-style file DB) — single writer, development hardware
+API          : uvicorn (1 worker), FastAPI, SQLAlchemy 2.0
+Note         : SQLite is the *worst case* for this test. PostgreSQL 16 from
+               docker-compose.yml is the deployment target and is faster under
+               concurrent reads; these numbers are a floor, not a promise.
+
+endpoint                       rps      p50      p95      p99      max  errors
+------------------------------------------------------------------------------
+explore (default)            101.9    178.6    311.1    414.2    427.9       0
+explore (filtered)            91.1    209.1    329.3    412.2    492.4       0
+explore (nearby bbox)         93.1    199.0    338.7    431.9    517.8       0
+ride detail                  211.1     90.3    126.9    149.0    173.5       0
+my trips                     332.1     58.3     75.4     96.6     98.9       0
+notifications                281.9     68.6     89.7    110.0    116.6       0
+explore (small page)         130.4    141.5    237.0    274.3    362.1       0
+
+All latencies in milliseconds. 0 HTTP failures across 2,800 requests.
+
+Reading the numbers
+-------------------
+* Explore is the heaviest read: bounding-box filter + joins on driver/vehicle +
+  a batched count of pending requests per ride. ~180 ms p50 with 20 concurrent
+  clients on SQLite is acceptable for a university-sized user base (a few hundred
+  daily journeys); PostgreSQL with the existing composite indexes is faster.
+* Trip detail, My Trips and Notifications are comfortably sub-100 ms p50 because
+  they are single-user, index-covered queries.
+* No endpoint produced an error under concurrency — no 500s, no pool exhaustion.
+
+If Explore ever becomes the bottleneck
+--------------------------------------
+1. Add a composite index on (status, direction, departure_at) — already present as
+   `ix_rides_discovery`; verify with EXPLAIN ANALYZE on PostgreSQL.
+2. Cache the first Explore page per (direction, area bucket) for ~30 s.
+3. Move the `requests_count` sub-select into a denormalised counter updated on
+   accept/reject if p99 matters more than write simplicity.

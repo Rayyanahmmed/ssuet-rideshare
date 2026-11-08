@@ -1,0 +1,5 @@
+# Production extras on top of requirements.txt (doc 17).
+#   pip install -r requirements-prod.txt
+# gunicorn supervises the uvicorn workers declared in deploy/ssuet-api.service.
+-r requirements.txt
+gunicorn==26.2.0

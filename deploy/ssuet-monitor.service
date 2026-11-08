@@ -1,0 +1,26 @@
+# systemd unit for the health check (doc 18 §5). Triggered by ssuet-monitor.timer.
+#
+#   sudo cp deploy/ssuet-monitor.service deploy/ssuet-monitor.timer /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now ssuet-monitor.timer
+#   systemctl list-timers | grep ssuet
+#   journalctl -u ssuet-monitor -n 30
+
+[Unit]
+Description=SSUET RideShare health check
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ssuet
+Group=ssuet
+# Set BASE_URL / ALERT_WEBHOOK / thresholds here (not in the unit, so a value with
+# spaces or a URL never has to be escaped twice).
+EnvironmentFile=-/etc/ssuet-rideshare/monitor.env
+ExecStart=/srv/ssuet-rideshare/deploy/monitor.sh
+# A failed check is information, not a crash: the timer runs again in 15 minutes.
+SuccessExitStatus=0 1
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true

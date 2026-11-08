@@ -1,0 +1,59 @@
+# systemd unit for the SSUET RideShare API.
+#
+#   sudo cp deploy/ssuet-api.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now ssuet-api
+#   journalctl -u ssuet-api -f
+#
+# gunicorn with uvicorn workers: the workers are async (so WebSocket chat works) and
+# the master supervises them. Worker count follows the usual 2 × cores + 1 rule; the
+# default here assumes a 2-vCPU VPS.
+
+[Unit]
+Description=SSUET RideShare API (FastAPI via gunicorn + uvicorn workers)
+Documentation=file:///srv/ssuet-rideshare/documentation/17-production-deployment.md
+After=network-online.target postgresql.service
+Wants=network-online.target
+Requires=postgresql.service
+
+[Service]
+Type=notify
+User=ssuet
+Group=ssuet
+WorkingDirectory=/srv/ssuet-rideshare/backend
+EnvironmentFile=/etc/ssuet-rideshare/api.env
+# --forwarded-allow-ips: trust X-Forwarded-* only from the local nginx.
+ExecStart=/srv/ssuet-rideshare/backend/.venv/bin/gunicorn app.main:app \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --workers 5 \
+    --bind 127.0.0.1:8010 \
+    --timeout 60 \
+    --graceful-timeout 30 \
+    --keep-alive 5 \
+    --forwarded-allow-ips 127.0.0.1 \
+    --access-logfile - \
+    --error-logfile - \
+    --log-level info
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=3
+TimeoutStopSec=40
+KillSignal=SIGTERM
+
+# ---------- hardening ----------
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryMax=1G
+# The only directory the service may write to: uploaded documents.
+ReadWritePaths=/var/lib/ssuet-rideshare/media
+
+[Install]
+WantedBy=multi-user.target
