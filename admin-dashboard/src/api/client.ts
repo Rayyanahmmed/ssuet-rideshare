@@ -10,10 +10,19 @@ import { useAdminAuth } from '@/store/auth';
  */
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
+/**
+ * ngrok's free tunnel shows a browser warning page unless this header is sent. Without it
+ * the warning page has no CORS header and every request looks "blocked". Harmless elsewhere.
+ */
+const COMMON_HEADERS = {
+  Accept: 'application/json',
+  'ngrok-skip-browser-warning': '1',
+};
+
 export const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
-  headers: { Accept: 'application/json' },
+  headers: COMMON_HEADERS,
 });
 
 export type ApiErrorPayload = {
@@ -43,7 +52,11 @@ async function refresh(): Promise<string | null> {
   const { refreshToken } = useAdminAuth.getState();
   if (!refreshToken) return null;
   try {
-    const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, { refresh_token: refreshToken });
+    const { data } = await axios.post(
+      `${API_BASE_URL}/auth/refresh`,
+      { refresh_token: refreshToken },
+      { headers: COMMON_HEADERS },
+    );
     useAdminAuth.getState().setSession(data.user, data.access_token, data.refresh_token);
     return data.access_token as string;
   } catch {
