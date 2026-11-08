@@ -136,7 +136,12 @@ export default function MyRidesScreen() {
         <Text style={styles.title}>My rides</Text>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.tabScroll}
+        contentContainerStyle={styles.tabRow}
+      >
         {TABS.map((item) => {
           const active = item === tab;
           return (
@@ -420,7 +425,8 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   header: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   title: { color: colors.text, ...typography.display },
-  tabRow: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: spacing.sm },
+  tabScroll: { flexGrow: 0 },
+  tabRow: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: spacing.sm, alignItems: 'center' },
   tab: {
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,

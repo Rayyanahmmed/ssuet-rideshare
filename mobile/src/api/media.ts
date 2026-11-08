@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { api } from '@/api/client';
 import type { SessionUser } from '@/store/auth';
 
@@ -43,13 +44,31 @@ export function mediaUrl(path: string | null | undefined): string | null {
  */
 export const MAX_PROFILE_PHOTO_BYTES = 2 * 1024 * 1024;
 
+/**
+ * Build the multipart part for one picked file.
+ * - Native (Android/iOS): React Native accepts a `{ uri, name, type }` object.
+ * - Web (browser): that object is NOT a file, so the server receives no `file` field and
+ *   answers "Some of the submitted values are invalid". Turn the picked blob: URL into a
+ *   real File first.
+ */
+async function toFormPart(file: { uri: string; name: string; type: string }): Promise<Blob> {
+  if (Platform.OS !== 'web') {
+    return { uri: file.uri, name: file.name, type: file.type } as unknown as Blob;
+  }
+  const response = await fetch(file.uri);
+  const blob = await response.blob();
+  const type = file.type || blob.type || 'image/jpeg';
+  const name = file.name || `upload.${type.split('/')[1] || 'jpg'}`;
+  return new File([blob], name, { type });
+}
+
 export async function uploadProfilePhoto(file: {
   uri: string;
   name: string;
   type: string;
 }): Promise<SessionUser> {
   const form = new FormData();
-  form.append('file', { uri: file.uri, name: file.name, type: file.type } as unknown as Blob);
+  form.append('file', await toFormPart(file));
   const { data } = await api.post('/users/me/photo', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 60000,
@@ -67,7 +86,7 @@ export async function uploadDocument(
   file: { uri: string; name: string; type: string },
 ): Promise<MediaAsset> {
   const form = new FormData();
-  form.append('file', { uri: file.uri, name: file.name, type: file.type } as unknown as Blob);
+  form.append('file', await toFormPart(file));
   const { data } = await api.post<MediaAsset>(endpoint, form, {
     headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 60000, // uploads on a campus network can be slow

@@ -231,7 +231,12 @@ function QuickAction({
   return (
     <Pressable onPress={onPress} style={[styles.quick, highlight && styles.quickHighlight]}>
       <Ionicons name={icon} size={20} color={highlight ? colors.textInverse : colors.navy} />
-      <Text style={[styles.quickLabel, highlight && styles.quickLabelHighlight]}>{label}</Text>
+      <Text
+        numberOfLines={1}
+        style={[styles.quickLabel, highlight && styles.quickLabelHighlight]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -301,7 +306,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   quickHighlight: { backgroundColor: colors.green, borderColor: colors.green },
-  quickLabel: { color: colors.navy, ...typography.caption, fontWeight: '600' },
+  quickLabel: { color: colors.navy, ...typography.caption, fontWeight: '600', textAlign: 'center' },
   quickLabelHighlight: { color: colors.textInverse },
   section: { gap: spacing.xs },
   seeAll: { color: colors.navy, ...typography.caption, fontWeight: '700' },
