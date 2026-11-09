@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -21,6 +21,7 @@ import { TripCard } from '@/components/TripCard';
 import { Avatar, Badge, Button, Card, EmptyState } from '@/components/ui';
 import { formatDeparture, relativeDay } from '@/lib/format';
 import { colors, radius, spacing, typography } from '@/theme';
+import { appAlert } from '@/lib/appAlert';
 
 const TABS = ['Published', 'Requested', 'Upcoming', 'Completed', 'Cancelled'] as const;
 type Tab = (typeof TABS)[number];
@@ -78,10 +79,10 @@ export default function MyRidesScreen() {
     mutationFn: (requestId: string) => acceptRequest(requestId),
     onSuccess: async () => {
       await invalidate();
-      Alert.alert('Passenger confirmed', 'The seat is reserved, a private trip chat has been opened and other requesters were informed.');
+      appAlert('Passenger confirmed', 'The seat is reserved, a private trip chat has been opened and other requesters were informed.');
     },
     onError: (error) =>
-      Alert.alert(
+      appAlert(
         'Could not accept',
         error instanceof ApiError ? error.message : 'Please try again.',
       ),
@@ -195,7 +196,7 @@ export default function MyRidesScreen() {
                 onAccept={(requestId) => acceptMutation.mutate(requestId)}
                 onReject={(requestId) => rejectMutation.mutate(requestId)}
                 onCancel={() =>
-                  Alert.alert('Cancel journey?', 'Anyone waiting or confirmed will be notified.', [
+                  appAlert('Cancel journey?', 'Anyone waiting or confirmed will be notified.', [
                     { text: 'Keep it', style: 'cancel' },
                     {
                       text: 'Cancel journey',

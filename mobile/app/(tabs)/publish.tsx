@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -12,6 +12,7 @@ import { SSUET, type AreaPoint } from '@/lib/areas';
 import { formatTime, rupees } from '@/lib/format';
 import { useAuthStore } from '@/store/auth';
 import { colors, radius, spacing, typography } from '@/theme';
+import { appAlert } from '@/lib/appAlert';
 
 type FuelChoice = 'FREE' | 'SHARE_FUEL';
 
@@ -94,7 +95,7 @@ export default function PublishScreen() {
     onSuccess: async (ride) => {
       await queryClient.invalidateQueries({ queryKey: ['rides'] });
       await queryClient.invalidateQueries({ queryKey: ['my-rides'] });
-      Alert.alert('Journey published', 'It is now visible in Explore. We will notify you when someone asks to join.');
+      appAlert('Journey published', 'It is now visible in Explore. We will notify you when someone asks to join.');
       router.replace(`/ride/${ride.id}`);
     },
     onError: (err) => {

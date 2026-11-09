@@ -1,18 +1,6 @@
 import { goBackOr } from '@/lib/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  KeyboardAvoidingView,
-  Linking,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, FlatList, KeyboardAvoidingView, Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,6 +19,7 @@ import { ApiError } from '@/api/client';
 import { Avatar, Banner } from '@/components/ui';
 import { formatTime, relativeDay } from '@/lib/format';
 import { colors, radius, spacing, typography } from '@/theme';
+import { appAlert } from '@/lib/appAlert';
 
 type ConnectionState = 'connecting' | 'live' | 'fallback' | 'denied';
 
@@ -261,7 +250,7 @@ export default function ChatScreen() {
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== 'granted') {
-        Alert.alert(
+        appAlert(
           'Location permission needed',
           'Allow location access in Settings, or type your pickup point in the message box.',
         );
@@ -275,7 +264,7 @@ export default function ChatScreen() {
         `📍 Mera current location: https://maps.google.com/?q=${latitude.toFixed(6)},${longitude.toFixed(6)}`,
       );
     } catch {
-      Alert.alert(
+      appAlert(
         'Location not available',
         'Turn on GPS and try again, or type your pickup point in the message box.',
       );

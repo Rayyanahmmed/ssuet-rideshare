@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { Platform } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
@@ -44,7 +45,23 @@ function AuthGuard() {
   return null;
 }
 
+/**
+ * Web only: mobile browsers make `100vh` taller than the visible screen, which pushed the
+ * bottom tab labels below the fold. `100dvh` follows the real visible height.
+ */
+function useWebFullHeight() {
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const style = document.createElement('style');
+    style.id = 'ssuet-full-height';
+    style.textContent = 'html, body, #root { height: 100dvh !important; min-height: 100dvh; }';
+    document.head.appendChild(style);
+    return () => style.remove();
+  }, []);
+}
+
 export default function RootLayout() {
+  useWebFullHeight();
   const hydrate = useAuthStore((state) => state.hydrate);
   const status = useAuthStore((state) => state.status);
   const pushTokenRef = useRef<string | null>(null);

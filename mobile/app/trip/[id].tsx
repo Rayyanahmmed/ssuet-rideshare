@@ -1,16 +1,6 @@
 import { goBackOr } from '@/lib/navigation';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Linking,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -28,6 +18,7 @@ import {
 import { Avatar, Badge, Banner, Button, Card } from '@/components/ui';
 import { formatDeparture, relativeDay } from '@/lib/format';
 import { colors, radius, spacing, typography } from '@/theme';
+import { appAlert } from '@/lib/appAlert';
 
 const STATUS_TONE: Record<TripStatus, 'success' | 'warning' | 'danger' | 'neutral' | 'info'> = {
   CONFIRMED: 'success',
@@ -91,7 +82,7 @@ export default function TripScreen() {
     onSuccess: async (trip) => {
       await refresh(trip);
       if (trip.status === 'COMPLETED') {
-          Alert.alert(
+          appAlert(
           'Journey completed',
           `Thank you for pooling. You can now rate ${firstName}.`,
           [
@@ -120,10 +111,10 @@ export default function TripScreen() {
         queryClient.invalidateQueries({ queryKey: ['trips'] }),
         queryClient.invalidateQueries({ queryKey: ['blocked'] }),
       ]);
-      Alert.alert('Member blocked', 'You will not be matched with them again.');
+      appAlert('Member blocked', 'You will not be matched with them again.');
     },
     onError: (err) =>
-      Alert.alert('Could not block', err instanceof ApiError ? err.message : 'Please try again.'),
+      appAlert('Could not block', err instanceof ApiError ? err.message : 'Please try again.'),
   });
 
   const noShowMutation = useMutation({
@@ -169,7 +160,7 @@ export default function TripScreen() {
 
   const call = () => {
     if (!counterpart.phone) {
-      Alert.alert('No phone number', 'This member has not shared a phone number.');
+      appAlert('No phone number', 'This member has not shared a phone number.');
       return;
     }
     void Linking.openURL(`tel:${counterpart.phone}`);
@@ -307,7 +298,7 @@ export default function TripScreen() {
                 icon="ban-outline"
                 fullWidth={false}
                 onPress={() =>
-                  Alert.alert(
+                  appAlert(
                     `Block ${firstName}?`,
                     'You will never be matched with this member again and neither of you can message the other.',
                     [
@@ -380,7 +371,7 @@ export default function TripScreen() {
                     fullWidth={false}
                     disabled={!trip.can_mark_no_show || busy}
                     onPress={() =>
-                      Alert.alert(
+                      appAlert(
                         'Mark as no-show?',
                         'This records that the passenger never turned up and frees the seat.',
                         [

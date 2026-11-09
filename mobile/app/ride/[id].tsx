@@ -1,15 +1,6 @@
 import { goBackOr } from '@/lib/navigation';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -21,6 +12,7 @@ import { WebMap } from '@/components/map/WebMap';
 import { formatDeparture, relativeDay, rupees } from '@/lib/format';
 import { useAuthStore } from '@/store/auth';
 import { colors, radius, spacing, typography } from '@/theme';
+import { appAlert } from '@/lib/appAlert';
 
 export default function RideDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -41,7 +33,7 @@ export default function RideDetailScreen() {
       setMessage('');
       await queryClient.invalidateQueries({ queryKey: ['ride', id] });
       await queryClient.invalidateQueries({ queryKey: ['rides'] });
-      Alert.alert('Request sent', 'The driver will be notified. You can follow the status in My Rides.');
+      appAlert('Request sent', 'The driver will be notified. You can follow the status in My Rides.');
     },
     onError: (err) => {
       setError(err instanceof ApiError ? err.message : 'Could not send your request.');
@@ -258,7 +250,7 @@ export default function RideDetailScreen() {
             variant="danger"
             loading={cancelMutation.isPending}
             onPress={() =>
-              Alert.alert('Cancel journey?', 'The passenger (if any) will be notified immediately.', [
+              appAlert('Cancel journey?', 'The passenger (if any) will be notified immediately.', [
                 { text: 'Keep it', style: 'cancel' },
                 { text: 'Cancel journey', style: 'destructive', onPress: () => cancelMutation.mutate() },
               ])

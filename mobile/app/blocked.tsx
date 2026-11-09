@@ -1,21 +1,13 @@
 import { goBackOr } from '@/lib/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ApiError, api } from '@/api/client';
 import { Avatar, Banner, Button, Card, EmptyState } from '@/components/ui';
 import { colors, spacing, typography } from '@/theme';
+import { appAlert } from '@/lib/appAlert';
 
 type BlockedMember = {
   id: string;
@@ -45,7 +37,7 @@ export default function BlockedScreen() {
       ]);
     },
     onError: (err) =>
-      Alert.alert('Could not unblock', err instanceof ApiError ? err.message : 'Please try again.'),
+      appAlert('Could not unblock', err instanceof ApiError ? err.message : 'Please try again.'),
   });
 
   return (

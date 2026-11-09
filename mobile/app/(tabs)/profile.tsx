@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { deleteProfilePhoto, uploadProfilePhoto } from '@/api/media';
 import { Avatar, Badge, Button, Card } from '@/components/ui';
 import { useAuthStore } from '@/store/auth';
 import { colors, radius, spacing, typography } from '@/theme';
+import { appAlert } from '@/lib/appAlert';
 
 function verificationBadge(status?: string) {
   switch (status) {
@@ -46,7 +47,7 @@ export default function ProfileScreen() {
   const changePhoto = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Photo access needed', 'Allow photo access in Settings to add a profile photo.');
+      appAlert('Photo access needed', 'Allow photo access in Settings to add a profile photo.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -69,14 +70,14 @@ export default function ProfileScreen() {
     } catch (error) {
       const message =
         error instanceof ApiError ? error.message : 'The photo could not be uploaded. Try again.';
-      Alert.alert('Photo not saved', message);
+      appAlert('Photo not saved', message);
     } finally {
       setPhotoBusy(false);
     }
   };
 
   const removePhoto = () => {
-    Alert.alert('Remove photo', 'Your initials will be shown instead.', [
+    appAlert('Remove photo', 'Your initials will be shown instead.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Remove',
@@ -87,7 +88,7 @@ export default function ProfileScreen() {
             const updated = await deleteProfilePhoto();
             updateUser(updated);
           } catch {
-            Alert.alert('Not removed', 'The photo could not be removed. Try again.');
+            appAlert('Not removed', 'The photo could not be removed. Try again.');
           } finally {
             setPhotoBusy(false);
           }
@@ -106,7 +107,7 @@ export default function ProfileScreen() {
         }`;
 
   const confirmSignOut = () => {
-    Alert.alert('Sign out', 'You will need your password to sign in again on this device.', [
+    appAlert('Sign out', 'You will need your password to sign in again on this device.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Sign out',
