@@ -10,18 +10,14 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.green,
         tabBarInactiveTintColor: colors.textMuted,
+        // No fixed height: a fixed height clipped the labels on the web. The default layout
+        // sizes the bar for the icon plus the label and the device's bottom inset.
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
-          height: 72,
-          paddingBottom: 16,
-          paddingTop: 6,
         },
-        tabBarLabelStyle: {
-          fontSize: typography.label.fontSize,
-          fontWeight: '600',
-          marginBottom: 2,
-        },
+        tabBarItemStyle: { paddingVertical: 4 },
+        tabBarLabelStyle: { fontSize: typography.label.fontSize, fontWeight: '600' },
       }}
     >
       <Tabs.Screen
