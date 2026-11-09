@@ -37,6 +37,16 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: 'SSUET RideShare',
   slug: 'ssuet-rideshare',
   version: '1.0.0',
+  // Over-the-air updates (expo-updates). JavaScript-only fixes are published with
+  // `eas update` and reach installed APKs without a new APK build. `appVersion` policy means
+  // a new APK version (not a JS change) is what forces a fresh install.
+  runtimeVersion: { policy: 'appVersion' },
+  updates: {
+    url: `https://u.expo.dev/${envOr(process.env.EAS_PROJECT_ID, '11fd9726-022e-4f5a-8690-48deb063f925')}`,
+    enabled: true,
+    checkAutomatically: 'ON_LOAD',
+    fallbackToCacheTimeout: 0,
+  },
   orientation: 'portrait',
   scheme: 'ssuetrideshare',
   userInterfaceStyle: 'light',
