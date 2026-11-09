@@ -55,7 +55,9 @@ function useWebFullHeight() {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
     const style = document.createElement('style');
     style.id = 'ssuet-full-height';
-    style.textContent = 'html, body, #root { height: 100dvh !important; min-height: 100dvh; }';
+    style.textContent =
+      'html, body { height: 100%; overflow: hidden; } ' +
+      '#root { position: fixed; top: 0; left: 0; right: 0; bottom: 0; height: 100dvh !important; }';
     document.head.appendChild(style);
     return () => style.remove();
   }, []);

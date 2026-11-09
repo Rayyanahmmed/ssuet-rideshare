@@ -1,6 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef } from 'react';
 import { StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { getApiBaseUrl } from '@/lib/config';
 
 /**
  * Native map surface: a WebView. The web build swaps this file for MapSurface.web.tsx
@@ -28,7 +29,8 @@ export const MapSurface = forwardRef<MapSurfaceHandle, Props>(function MapSurfac
     <WebView
       ref={webview}
       originWhitelist={['*']}
-      source={{ html }}
+      // The page's origin is the API server, so tile fetches are same-origin (no CORS).
+      source={{ html, baseUrl: apiOrigin() }}
       style={styles.web}
       javaScriptEnabled
       domStorageEnabled={false}
@@ -48,3 +50,11 @@ export const MapSurface = forwardRef<MapSurfaceHandle, Props>(function MapSurfac
 const styles = StyleSheet.create({
   web: { flex: 1, backgroundColor: '#EEF1F4' },
 });
+
+function apiOrigin(): string | undefined {
+  try {
+    return new URL(getApiBaseUrl()).origin;
+  } catch {
+    return undefined;
+  }
+}

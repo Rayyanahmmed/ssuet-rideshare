@@ -163,6 +163,27 @@ function showError(text) {
   errEl.style.display = 'flex';
 }
 
+/**
+ * Tiles are fetched with the ngrok warning-skip header and shown from a blob URL. A plain
+ * <img src> cannot send that header, so a free ngrok tunnel answers with its warning page
+ * instead of the tile and the map stays grey. Requests use the same credentials-free path
+ * as the rest of the API, which already works through the tunnel.
+ */
+function loadTile(el, url) {
+  fetch(url, { headers: { 'ngrok-skip-browser-warning': '1' }, credentials: 'omit' })
+    .then(function (response) {
+      if (!response.ok) { throw new Error('tile ' + response.status); }
+      return response.blob();
+    })
+    .then(function (blob) {
+      el.src = URL.createObjectURL(blob);
+    })
+    .catch(function () {
+      el.style.opacity = 0;
+      tileFailed();
+    });
+}
+
 function tileFailed() {
   failedTiles++;
   if (failedTiles >= 4 && !reportedTilesFailure) {
@@ -190,7 +211,7 @@ function placeTiles() {
         el.alt = '';
         el.onload = function () { this.style.opacity = 1; };
         el.onerror = function () { this.style.opacity = 0; tileFailed(); };
-        el.src = CONFIG.tileBase + '/' + state.zoom + '/' + x + '/' + y + '.png';
+        loadTile(el, CONFIG.tileBase + '/' + state.zoom + '/' + x + '/' + y + '.png');
         world.appendChild(el);
         tiles[key] = el;
       }
@@ -200,6 +221,7 @@ function placeTiles() {
   }
   for (var k in tiles) {
     if (!needed[k]) {
+      if (tiles[k].src && tiles[k].src.indexOf('blob:') === 0) { URL.revokeObjectURL(tiles[k].src); }
       if (tiles[k].parentNode) { tiles[k].parentNode.removeChild(tiles[k]); }
       delete tiles[k];
     }
