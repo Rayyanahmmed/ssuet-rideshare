@@ -5,6 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { colors } from '@/theme';
+import { NotificationToaster } from '@/components/NotificationToaster';
 import { useAuthStore } from '@/store/auth';
 import { setAccessToken, setRefreshToken } from '@/api/client';
 import { clearTokens } from '@/lib/secureStore';
@@ -106,6 +107,7 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <StatusBar style="dark" />
         <AuthGuard />
+        <NotificationToaster />
         <Stack
           screenOptions={{
             headerShown: false,
