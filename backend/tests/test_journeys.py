@@ -137,7 +137,14 @@ def test_journey_publish_discover_match_chat_complete_review(client, db):
     assert started.json()["status"] == "IN_PROGRESS"
     assert client.get(f"/api/v1/rides/{ride['id']}", headers=driver["headers"]).json()["status"] == "IN_PROGRESS"
 
-    # 10. Completion needs both sides ----------------------------------------
+    # 10. A paid ride: the cash is settled before the driver can finish it --
+    blocked = client.post(f"/api/v1/trips/{trip['id']}/complete", headers=driver["headers"])
+    assert blocked.status_code == 409, blocked.text
+    assert client.post(f"/api/v1/trips/{trip['id']}/payment/mark-paid", headers=passenger["headers"]).status_code == 200
+    verified = client.post(f"/api/v1/trips/{trip['id']}/payment/confirm", headers=driver["headers"])
+    assert verified.status_code == 200, verified.text
+
+    # 11. Completion needs both sides ----------------------------------------
     first = client.post(f"/api/v1/trips/{trip['id']}/complete", headers=driver["headers"]).json()
     assert first["status"] == "IN_PROGRESS"
     assert first["awaiting_my_confirmation"] is False

@@ -21,10 +21,10 @@ def iso(**delta) -> str:
     return (datetime.now(UTC) + timedelta(**delta)).isoformat()
 
 
-def matched_trip(client, *, depart_in_minutes: int = 300):
+def matched_trip(client, *, depart_in_minutes: int = 300, **ride_overrides):
     """Driver + passenger with an accepted request → CONFIRMED trip."""
     driver, _vehicle, ride = passenger_setup(
-        client, ride_overrides={"departure_at": iso(minutes=depart_in_minutes)}
+        client, ride_overrides={"departure_at": iso(minutes=depart_in_minutes), **ride_overrides}
     )
     passenger = register(client)
     response = client.post(

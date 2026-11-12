@@ -99,6 +99,8 @@ export type Trip = {
   my_role: TripRole;
   can_start: boolean;
   can_complete: boolean;
+  payment_required: boolean;
+  completion_ready: boolean;
   can_cancel: boolean;
   can_mark_no_show: boolean;
 

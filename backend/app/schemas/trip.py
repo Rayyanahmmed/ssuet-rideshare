@@ -67,6 +67,8 @@ class TripOut(BaseModel):
     fuel_contribution_amount: float | None = None
 
     # --- cash payment (payment feature) ---
+    payment_required: bool = False
+    completion_ready: bool = True
     payment_status: str | None = None
     can_mark_paid: bool = False
     can_confirm_payment: bool = False

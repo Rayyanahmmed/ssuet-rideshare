@@ -228,10 +228,12 @@ export default function TripScreen() {
     void Linking.openURL(`tel:${counterpart.phone}`);
   };
 
+  // Cash payment for fuel-share rides opens as soon as the journey starts.
   const paymentOpen =
-    trip.status === 'COMPLETED' ||
-    (trip.status === 'IN_PROGRESS' && trip.driver_confirmed_complete) ||
-    trip.payment_status !== null;
+    trip.payment_required &&
+    (trip.status === 'IN_PROGRESS' || trip.status === 'COMPLETED' || trip.payment_status !== null);
+  // The driver cannot finish a paid ride until the cash is verified or reported.
+  const blockedByPayment = isDriver && trip.status === 'IN_PROGRESS' && trip.payment_required && !trip.completion_ready;
 
   const driverSettle = (
     <>
@@ -625,6 +627,14 @@ export default function TripScreen() {
               icon="navigate-outline"
               loading={startMutation.isPending}
               onPress={() => startMutation.mutate()}
+            />
+          ) : blockedByPayment ? (
+            <Button
+              label="Verify the cash payment to finish"
+              icon="cash-outline"
+              variant="secondary"
+              disabled
+              onPress={() => undefined}
             />
           ) : trip.can_complete ? (
             <Button

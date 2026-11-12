@@ -21,6 +21,7 @@ import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
@@ -71,18 +72,23 @@ def _payment_out(trip: Trip, payment: TripPayment | None) -> PaymentOut:
 
 
 def payment_window_open(trip: Trip) -> bool:
-    """Cash payment opens once the driver has confirmed the journey is finished."""
+    """Cash payment opens when the journey starts and stays open after it completes."""
 
-    if trip.status in (TripStatus.CANCELLED, TripStatus.NO_SHOW):
-        return False
-    return trip.status is TripStatus.COMPLETED or bool(trip.driver_confirmed_complete)
+    return trip.status in (TripStatus.IN_PROGRESS, TripStatus.COMPLETED)
+
+
+def payment_settled(payment: TripPayment | None) -> bool:
+    """A payment the driver has either verified or reported. Only then can the trip be finished."""
+
+    return payment is not None and payment.status in (
+        PaymentStatus.VERIFIED,
+        PaymentStatus.NON_PAYMENT_REPORTED,
+    )
 
 
 def _require_open_window(trip: Trip) -> None:
     if not payment_window_open(trip):
-        raise ConflictError(
-            "The payment opens after the driver confirms the journey is finished."
-        )
+        raise ConflictError("The cash payment opens once the journey has started.")
 
 
 def _require_driver(trip: Trip, actor: User) -> None:
@@ -151,7 +157,11 @@ def confirm_cash_payment(
         invoice_number=payment.invoice_number,
         data={"screen": "trip", "trip_id": str(trip.id)},
     )
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise ConflictError("This payment was already recorded. Refresh the trip to see its status.") from None
     db.refresh(payment)
     logger.info("cash payment verified for trip %s, invoice %s", trip.id, payment.invoice_number)
     return _payment_out(trip, payment)

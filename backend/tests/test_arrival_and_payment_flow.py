@@ -157,3 +157,81 @@ def test_notifications_have_the_new_types(client, db):
     client.post(f"{TRIPS}/{trip['id']}/arrived", headers=driver["headers"])
     types = {row.type for row in db.query(Notification).all()}
     assert NotificationType.DRIVER_ARRIVED in types
+
+
+# ------------------------------------------- finish only after the cash is settled
+def paid_share_trip(client):
+    """A SHARE_FUEL ride (fixed Rs 150) with an accepted passenger, started."""
+    driver, passenger, trip = matched_trip(
+        client,
+        depart_in_minutes=20,
+        fuel_preference="SHARE_FUEL",
+        contribution_type="FIXED",
+        contribution_amount=150,
+    )
+    assert client.post(f"{TRIPS}/{trip['id']}/start", headers=driver["headers"]).status_code == 200
+    return driver, passenger, trip
+
+
+def test_driver_cannot_finish_a_paid_ride_before_cash_is_settled(client):
+    driver, passenger, trip = paid_share_trip(client)
+
+    before = client.get(f"{TRIPS}/{trip['id']}", headers=driver["headers"]).json()
+    assert before["payment_required"] is True
+    assert before["can_complete"] is False
+    assert before["completion_ready"] is False
+
+    blocked = client.post(f"{TRIPS}/{trip['id']}/complete", headers=driver["headers"])
+    assert blocked.status_code == 409
+    assert "cash payment" in blocked.json()["error"]["message"].lower()
+
+
+def test_passenger_completion_does_not_bypass_the_cash_gate(client):
+    driver, passenger, trip = paid_share_trip(client)
+    assert client.post(f"{TRIPS}/{trip['id']}/complete", headers=passenger["headers"]).status_code == 200
+    final = client.post(f"{TRIPS}/{trip['id']}/complete", headers=driver["headers"])
+    assert final.status_code == 409
+    assert client.get(f"{TRIPS}/{trip['id']}", headers=driver["headers"]).json()["status"] == "IN_PROGRESS"
+
+
+def test_paid_ride_finishes_after_passenger_paid_and_driver_verified(client):
+    driver, passenger, trip = paid_share_trip(client)
+
+    # Passenger can pay during the journey, before anyone finishes it.
+    paid = client.post(f"{TRIPS}/{trip['id']}/payment/mark-paid", headers=passenger["headers"])
+    assert paid.status_code == 200, paid.text
+    assert client.post(f"{TRIPS}/{trip['id']}/payment/confirm", headers=driver["headers"]).status_code == 200
+
+    driver_view = client.get(f"{TRIPS}/{trip['id']}", headers=driver["headers"]).json()
+    assert driver_view["can_complete"] is True
+    assert client.post(f"{TRIPS}/{trip['id']}/complete", headers=driver["headers"]).status_code == 200
+    done = client.post(f"{TRIPS}/{trip['id']}/complete", headers=passenger["headers"]).json()
+    assert done["status"] == "COMPLETED"
+
+
+def test_driver_can_finish_after_reporting_non_payment(client):
+    """The journey happened even if the cash did not come. Reporting settles the payment."""
+    driver, passenger, trip = paid_share_trip(client)
+    reported = client.post(
+        f"{TRIPS}/{trip['id']}/payment/non-payment-report",
+        json={"description": "The passenger did not pay the fuel share in cash."},
+        headers=driver["headers"],
+    )
+    assert reported.status_code == 201, reported.text
+    assert client.post(f"{TRIPS}/{trip['id']}/complete", headers=driver["headers"]).status_code == 200
+
+
+def test_free_ride_is_not_gated(client):
+    driver, passenger, trip = matched_trip(client, depart_in_minutes=20)
+    client.post(f"{TRIPS}/{trip['id']}/start", headers=driver["headers"])
+    flags = client.get(f"{TRIPS}/{trip['id']}", headers=driver["headers"]).json()
+    assert flags["payment_required"] is False
+    assert flags["can_complete"] is True
+    assert client.post(f"{TRIPS}/{trip['id']}/complete", headers=driver["headers"]).status_code == 200
+
+
+def test_duplicate_payment_confirm_returns_a_clear_conflict(client):
+    driver, passenger, trip = paid_share_trip(client)
+    client.post(f"{TRIPS}/{trip['id']}/payment/confirm", headers=driver["headers"])
+    again = client.post(f"{TRIPS}/{trip['id']}/payment/confirm", headers=driver["headers"])
+    assert again.status_code == 409

@@ -44,6 +44,7 @@ from app.models.payment import TripPayment
 from app.models.enums import (
     RIDE_STATUS_TRANSITIONS,
     TRIP_STATUS_TRANSITIONS,
+    FuelPreference,
     RideRequestStatus,
     RideStatus,
     TripStatus,
@@ -195,11 +196,23 @@ def serialize_trip(db: Session, trip: Trip, viewer: User) -> TripOut:
         and departure is not None
         and departure - START_EARLY_WINDOW <= now <= departure + START_LATE_WINDOW
     )
+    payment = db.scalar(select(TripPayment).where(TripPayment.trip_id == trip.id))
+    payment_status = payment.status if payment is not None else None
+    payment_settled = payment_status in (PaymentStatus.VERIFIED, PaymentStatus.NON_PAYMENT_REPORTED)
+    payment_window = bool(trip.status in (TripStatus.IN_PROGRESS, TripStatus.COMPLETED))
+    payment_required = bool(ride is not None and ride.fuel_preference is FuelPreference.SHARE_FUEL)
+    completion_ready = not payment_required or payment_status in (
+        PaymentStatus.VERIFIED,
+        PaymentStatus.NON_PAYMENT_REPORTED,
+    )
     can_complete = bool(
         (is_driver or is_passenger)
         and not my_confirmed
         and trip.status is TripStatus.IN_PROGRESS
     ) or bool(is_driver and trip.status is TripStatus.NO_SHOW and ride is not None and ride.status is not RideStatus.COMPLETED)
+    # The driver cannot finish a paid ride until the cash is verified or reported.
+    if is_driver and trip.status is TripStatus.IN_PROGRESS and not completion_ready:
+        can_complete = False
     can_cancel = bool(
         trip.status is TripStatus.CONFIRMED
         or (is_driver and trip.status is TripStatus.IN_PROGRESS)
@@ -211,14 +224,6 @@ def serialize_trip(db: Session, trip: Trip, viewer: User) -> TripOut:
         and now >= departure - timedelta(minutes=30)
     )
 
-    payment = db.scalar(select(TripPayment).where(TripPayment.trip_id == trip.id))
-    payment_status = payment.status if payment is not None else None
-    payment_settled = payment_status in (PaymentStatus.VERIFIED, PaymentStatus.NON_PAYMENT_REPORTED)
-    # Cash payment opens once the driver confirms the journey is finished (see payment_service).
-    payment_window = bool(
-        trip.status not in (TripStatus.CANCELLED, TripStatus.NO_SHOW)
-        and (trip.status is TripStatus.COMPLETED or trip.driver_confirmed_complete)
-    )
     can_settle_payment = bool(is_driver and payment_window and not payment_settled)
     can_mark_paid = bool(
         is_passenger and payment_window and payment_status is None
@@ -289,6 +294,8 @@ def serialize_trip(db: Session, trip: Trip, viewer: User) -> TripOut:
         can_cancel=can_cancel,
         can_mark_no_show=can_mark_no_show,
         driver_arrived_at=_aware(trip.driver_arrived_at),
+        payment_required=payment_required,
+        completion_ready=completion_ready,
         can_mark_arrived=can_mark_arrived,
         fuel_contribution_type=ride.contribution_type.value if ride is not None else None,
         fuel_contribution_amount=ride.contribution_amount if ride is not None else None,
@@ -391,6 +398,18 @@ def complete_trip(db: Session, trip_id: uuid.UUID, actor: User, note: str | None
         raise NotFoundError("This journey could not be found.")
 
     is_driver = actor.id == trip.driver_id
+
+    # A paid ride cannot be finished before the driver has verified (or reported) the cash.
+    if is_driver and trip.status is TripStatus.IN_PROGRESS and ride.fuel_preference is FuelPreference.SHARE_FUEL:
+        payment = db.scalar(select(TripPayment).where(TripPayment.trip_id == trip.id))
+        if payment is None or payment.status not in (
+            PaymentStatus.VERIFIED,
+            PaymentStatus.NON_PAYMENT_REPORTED,
+        ):
+            raise ConflictError(
+                "Record the cash payment first. Confirm the cash was received, or report that it was "
+                "not paid. Only then can you finish this trip."
+            )
 
     if trip.status is TripStatus.NO_SHOW:
         # The passenger never turned up; the driver still travelled. Finishing the
