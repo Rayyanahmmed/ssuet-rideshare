@@ -35,7 +35,7 @@
       },
       "env": {
         "APP_VARIANT": "production",
-        "EXPO_PUBLIC_API_URL": "https://exciting-effort-justness.ngrok-free.dev/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://ssuet-rideshare.ethiodeploy.app/api/v1"
       },
       "channel": "production"
     },
@@ -47,7 +47,7 @@
       },
       "env": {
         "APP_VARIANT": "production",
-        "EXPO_PUBLIC_API_URL": "https://exciting-effort-justness.ngrok-free.dev/api/v1",
+        "EXPO_PUBLIC_API_URL": "https://ssuet-rideshare.ethiodeploy.app/api/v1",
         "EXPO_PUBLIC_ALLOW_SERVER_OVERRIDE": "0"
       },
       "channel": "production"
