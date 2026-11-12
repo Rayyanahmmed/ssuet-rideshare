@@ -21,8 +21,8 @@ def upgrade() -> None:
     op.create_table(
         "trip_payments",
         sa.Column("id", sa.Uuid(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("(CURRENT_TIMESTAMP)"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("(CURRENT_TIMESTAMP)"), nullable=False),
         sa.Column("trip_id", sa.Uuid(), nullable=False),
         sa.Column("driver_id", sa.Uuid(), nullable=False),
         sa.Column("passenger_id", sa.Uuid(), nullable=False),
