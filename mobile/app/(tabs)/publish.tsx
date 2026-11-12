@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -69,6 +69,23 @@ export default function PublishScreen() {
   }, [days, dayIndex, slotIndex]);
 
   const isReturn = direction === 'UNIVERSITY_TO_HOME';
+
+  // Only times that are at least 30 minutes away on the chosen day can be picked.
+  const visibleSlots = useMemo(() => {
+    const day = days[dayIndex] ?? days[0]!;
+    const earliest = Date.now() + 30 * 60 * 1000;
+    return TIME_SLOTS.map((slot, index) => ({ slot, index })).filter(({ slot }) => {
+      const at = new Date(day.getFullYear(), day.getMonth(), day.getDate(), slot.hour, slot.minute, 0, 0);
+      return at.getTime() >= earliest;
+    });
+  }, [days, dayIndex]);
+
+  useEffect(() => {
+    if (visibleSlots.length === 0) return;
+    if (!visibleSlots.some(({ index }) => index === slotIndex)) {
+      setSlotIndex(visibleSlots[0]!.index);
+    }
+  }, [visibleSlots, slotIndex]);
 
   const publishMutation = useMutation({
     mutationFn: () => {
@@ -224,19 +241,23 @@ export default function PublishScreen() {
               ))}
             </ScrollView>
             <Text style={styles.fieldLabel}>Departure time</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-              {TIME_SLOTS.map((slot, index) => (
-                <Pressable
-                  key={`${slot.hour}-${slot.minute}`}
-                  onPress={() => setSlotIndex(index)}
-                  style={[styles.chip, slotIndex === index && styles.chipActive]}
-                >
-                  <Text style={[styles.chipLabel, slotIndex === index && styles.chipLabelActive]}>
-                    {formatTime(new Date(2026, 0, 1, slot.hour, slot.minute).toISOString())}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
+            {visibleSlots.length === 0 ? (
+              <Text style={styles.helper}>No times left today. Pick tomorrow to choose a time.</Text>
+            ) : (
+              <View style={styles.slotWrap}>
+                {visibleSlots.map(({ slot, index }) => (
+                  <Pressable
+                    key={`${slot.hour}-${slot.minute}`}
+                    onPress={() => setSlotIndex(index)}
+                    style={[styles.chip, slotIndex === index && styles.chipActive]}
+                  >
+                    <Text style={[styles.chipLabel, slotIndex === index && styles.chipLabelActive]}>
+                      {formatTime(new Date(2026, 0, 1, slot.hour, slot.minute).toISOString())}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
           </Card>
         ) : null}
 
@@ -393,6 +414,7 @@ const styles = StyleSheet.create({
   helper: { color: colors.textMuted, ...typography.caption, lineHeight: 17 },
   fieldLabel: { color: colors.textMuted, ...typography.label, textTransform: 'uppercase' },
   chipRow: { gap: spacing.sm, paddingVertical: 2 },
+  slotWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingVertical: 2 },
   chip: {
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
