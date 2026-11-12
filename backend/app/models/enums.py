@@ -105,6 +105,8 @@ class NotificationType(StrEnum):
     TRIP_NO_SHOW = "TRIP_NO_SHOW"
     TRIP_COMPLETED = "TRIP_COMPLETED"
     PAYMENT_CONFIRMED = "PAYMENT_CONFIRMED"
+    DRIVER_ARRIVED = "DRIVER_ARRIVED"
+    PAYMENT_MARKED_PAID = "PAYMENT_MARKED_PAID"
     ACCOUNT_VERIFIED = "ACCOUNT_VERIFIED"
     ACCOUNT_SUSPENDED = "ACCOUNT_SUSPENDED"
     ACCOUNT_REACTIVATED = "ACCOUNT_REACTIVATED"
@@ -124,6 +126,8 @@ class ReportCategory(StrEnum):
     HARASSMENT = "HARASSMENT"
     SAFETY_CONCERN = "SAFETY_CONCERN"
     NON_PAYMENT = "NON_PAYMENT"  # Payment feature: driver reports a passenger who did not pay
+    MISCOMMITMENT = "MISCOMMITMENT"  # a member did not keep the agreed ride or meeting
+    SCAM_OR_FRAUD = "SCAM_OR_FRAUD"  # fake payment claim, fake ride or any other scam
     PROFILE_PHOTO = "PROFILE_PHOTO"  # Phase 15 — the picture, not the behaviour
     OTHER = "OTHER"
 
@@ -154,6 +158,7 @@ class PaymentStatus(StrEnum):
     """
 
     PENDING = "PENDING"
+    PAID_BY_PASSENGER = "PAID_BY_PASSENGER"  # passenger says cash was paid; driver must verify
     VERIFIED = "VERIFIED"
     NON_PAYMENT_REPORTED = "NON_PAYMENT_REPORTED"
 

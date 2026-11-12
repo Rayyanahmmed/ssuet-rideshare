@@ -158,6 +158,16 @@ TEMPLATES: dict[str, tuple[NotificationType, str, str]] = {
         "Trip completed",
         "Your trip with {counterpart_name} from {area} is complete. You can rate them now.",
     ),
+    "DRIVER_ARRIVED": (
+        NotificationType.DRIVER_ARRIVED,
+        "Driver has arrived",
+        "{driver_name} is at the meeting point for your trip from {area}. Please head there now.",
+    ),
+    "PAYMENT_MARKED_PAID": (
+        NotificationType.PAYMENT_MARKED_PAID,
+        "Payment marked as done",
+        "{passenger_name} says the cash fuel share is paid. Confirm it once you have received the cash.",
+    ),
     "PAYMENT_CONFIRMED": (
         NotificationType.PAYMENT_CONFIRMED,
         "Payment verified",

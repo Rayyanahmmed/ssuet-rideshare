@@ -214,10 +214,24 @@ def serialize_trip(db: Session, trip: Trip, viewer: User) -> TripOut:
     payment = db.scalar(select(TripPayment).where(TripPayment.trip_id == trip.id))
     payment_status = payment.status if payment is not None else None
     payment_settled = payment_status in (PaymentStatus.VERIFIED, PaymentStatus.NON_PAYMENT_REPORTED)
-    # Cash payment is recorded by the driver once the trip is completed and not yet settled.
-    can_settle_payment = bool(is_driver and trip.status is TripStatus.COMPLETED and not payment_settled)
+    # Cash payment opens once the driver confirms the journey is finished (see payment_service).
+    payment_window = bool(
+        trip.status not in (TripStatus.CANCELLED, TripStatus.NO_SHOW)
+        and (trip.status is TripStatus.COMPLETED or trip.driver_confirmed_complete)
+    )
+    can_settle_payment = bool(is_driver and payment_window and not payment_settled)
+    can_mark_paid = bool(
+        is_passenger and payment_window and payment_status is None
+    )
     invoice_number = (
         payment.invoice_number if payment is not None and payment_status is PaymentStatus.VERIFIED else None
+    )
+    can_mark_arrived = bool(
+        is_driver
+        and trip.status in (TripStatus.CONFIRMED, TripStatus.IN_PROGRESS)
+        and trip.driver_arrived_at is None
+        and departure is not None
+        and now >= departure - timedelta(minutes=30)
     )
 
     return TripOut(
@@ -274,7 +288,12 @@ def serialize_trip(db: Session, trip: Trip, viewer: User) -> TripOut:
         can_complete=can_complete,
         can_cancel=can_cancel,
         can_mark_no_show=can_mark_no_show,
+        driver_arrived_at=_aware(trip.driver_arrived_at),
+        can_mark_arrived=can_mark_arrived,
+        fuel_contribution_type=ride.contribution_type.value if ride is not None else None,
+        fuel_contribution_amount=ride.contribution_amount if ride is not None else None,
         payment_status=payment_status.value if payment_status is not None else None,
+        can_mark_paid=can_mark_paid,
         can_confirm_payment=can_settle_payment,
         can_report_non_payment=can_settle_payment,
         invoice_number=invoice_number,
@@ -319,6 +338,41 @@ def start_trip(db: Session, trip_id: uuid.UUID, driver: User) -> Trip:
         db,
         user_id=trip.passenger_id,
         template="TRIP_STARTED",
+        commit=False,
+        driver_name=driver.full_name,
+        area=ride.pickup_area,
+        data={"screen": "trip", "trip_id": str(trip.id)},
+    )
+    _commit(db, trip)
+    return trip
+
+
+def mark_arrived(db: Session, trip_id: uuid.UUID, driver: User) -> Trip:
+    """Driver says "I have arrived" at the meeting point. The passenger is told at once.
+
+    Allowed from 30 minutes before departure. Calling it again changes nothing.
+    """
+
+    trip = get_trip_or_404(db, trip_id)
+    if trip.driver_id != driver.id:
+        raise ForbiddenError("Only the driver can mark arrival at the meeting point.")
+    if trip.status not in (TripStatus.CONFIRMED, TripStatus.IN_PROGRESS):
+        raise ConflictError("Arrival can only be marked for a trip that is still going ahead.")
+    ride = trip.ride
+    if ride is None:  # pragma: no cover - FK guarantees a ride
+        raise NotFoundError("This journey could not be found.")
+    if trip.driver_arrived_at is not None:
+        return trip
+
+    departure = _aware(ride.departure_at) or utcnow()
+    if utcnow() < departure - timedelta(minutes=30):
+        raise ConflictError("You can mark arrival from 30 minutes before departure.")
+
+    trip.driver_arrived_at = utcnow()
+    create_notification_from_template(
+        db,
+        user_id=trip.passenger_id,
+        template="DRIVER_ARRIVED",
         commit=False,
         driver_name=driver.full_name,
         area=ride.pickup_area,

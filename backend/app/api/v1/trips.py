@@ -47,6 +47,17 @@ def get_trip(trip_id: uuid.UUID, current_user: CurrentUser, db: DbSession) -> Tr
 
 
 @router.post(
+    "/{trip_id}/arrived",
+    response_model=TripOut,
+    summary='Driver says "I have arrived" at the meeting point (passenger is notified)',
+    responses={403: {"description": "Not the driver"}, 409: {"description": "Too early or trip not active"}},
+)
+def mark_arrived(trip_id: uuid.UUID, current_user: CurrentUser, db: DbSession) -> TripOut:
+    trip = trip_service.mark_arrived(db, trip_id, current_user)
+    return trip_service.serialize_trip(db, trip, current_user)
+
+
+@router.post(
     "/{trip_id}/start",
     response_model=TripOut,
     summary="Driver starts the journey",
@@ -123,6 +134,19 @@ def mark_no_show(
 )
 def get_payment(trip_id: uuid.UUID, current_user: CurrentUser, db: DbSession) -> PaymentOut:
     return payment_service.get_payment(db, trip_id, current_user)
+
+
+@router.post(
+    "/{trip_id}/payment/mark-paid",
+    response_model=PaymentOut,
+    summary="Passenger says the cash fuel share is paid (driver must then verify)",
+    responses={
+        403: {"description": "Not the passenger"},
+        409: {"description": "Payment window not open, or already marked / settled"},
+    },
+)
+def mark_paid(trip_id: uuid.UUID, current_user: CurrentUser, db: DbSession) -> PaymentOut:
+    return payment_service.mark_paid_by_passenger(db, trip_id, current_user)
 
 
 @router.post(

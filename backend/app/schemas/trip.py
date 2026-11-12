@@ -60,8 +60,15 @@ class TripOut(BaseModel):
     passenger_confirmed_complete: bool = False
     awaiting_my_confirmation: bool = False
 
+    # --- meeting and fuel agreement ---
+    driver_arrived_at: datetime | None = None
+    can_mark_arrived: bool = False
+    fuel_contribution_type: str | None = None
+    fuel_contribution_amount: float | None = None
+
     # --- cash payment (payment feature) ---
     payment_status: str | None = None
+    can_mark_paid: bool = False
     can_confirm_payment: bool = False
     can_report_non_payment: bool = False
     invoice_number: str | None = None

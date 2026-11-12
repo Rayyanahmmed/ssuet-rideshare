@@ -70,12 +70,30 @@ def _payment_out(trip: Trip, payment: TripPayment | None) -> PaymentOut:
     )
 
 
+def payment_window_open(trip: Trip) -> bool:
+    """Cash payment opens once the driver has confirmed the journey is finished."""
+
+    if trip.status in (TripStatus.CANCELLED, TripStatus.NO_SHOW):
+        return False
+    return trip.status is TripStatus.COMPLETED or bool(trip.driver_confirmed_complete)
+
+
+def _require_open_window(trip: Trip) -> None:
+    if not payment_window_open(trip):
+        raise ConflictError(
+            "The payment opens after the driver confirms the journey is finished."
+        )
+
+
+def _require_driver(trip: Trip, actor: User) -> None:
+    if trip.driver_id != actor.id:
+        raise ForbiddenError("Only the driver can do this for the trip.")
+
+
 def _require_driver_of_completed_trip(db: Session, trip_id: uuid.UUID, actor: User) -> Trip:
     trip = get_trip_or_404(db, trip_id)
-    if trip.driver_id != actor.id:
-        raise ForbiddenError("Only the driver can record the payment for this trip.")
-    if trip.status is not TripStatus.COMPLETED:
-        raise ConflictError("The payment can be recorded only after the trip is completed.")
+    _require_driver(trip, actor)
+    _require_open_window(trip)
     return trip
 
 
@@ -136,6 +154,46 @@ def confirm_cash_payment(
     db.commit()
     db.refresh(payment)
     logger.info("cash payment verified for trip %s, invoice %s", trip.id, payment.invoice_number)
+    return _payment_out(trip, payment)
+
+
+def mark_paid_by_passenger(db: Session, trip_id: uuid.UUID, passenger: User) -> PaymentOut:
+    """Passenger says the cash fuel share has been paid → PAID_BY_PASSENGER.
+
+    This does not create an invoice. The driver must confirm the cash was received
+    (or report it), so neither side can settle the payment alone.
+    """
+
+    trip = get_trip_or_404(db, trip_id)
+    if trip.passenger_id != passenger.id:
+        raise ForbiddenError("Only the passenger can mark their payment as done.")
+    _require_open_window(trip)
+    payment = _payment_for(db, trip)
+    if payment is not None:
+        if payment.status is PaymentStatus.PAID_BY_PASSENGER:
+            raise ConflictError("You have already marked this payment as done. The driver will confirm it.")
+        _ensure_not_settled(payment)
+
+    if payment is None:
+        payment = TripPayment(
+            trip_id=trip.id,
+            driver_id=trip.driver_id,
+            passenger_id=trip.passenger_id,
+        )
+        db.add(payment)
+    payment.status = PaymentStatus.PAID_BY_PASSENGER
+
+    create_notification_from_template(
+        db,
+        user_id=trip.driver_id,
+        template="PAYMENT_MARKED_PAID",
+        commit=False,
+        passenger_name=passenger.full_name,
+        data={"screen": "trip", "trip_id": str(trip.id)},
+    )
+    db.commit()
+    db.refresh(payment)
+    logger.info("passenger marked payment done for trip %s", trip.id)
     return _payment_out(trip, payment)
 
 

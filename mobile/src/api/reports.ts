@@ -8,6 +8,9 @@ export type ReportCategory =
   | 'MISLEADING_RIDE'
   | 'HARASSMENT'
   | 'SAFETY_CONCERN'
+  | 'MISCOMMITMENT'
+  | 'SCAM_OR_FRAUD'
+  | 'NON_PAYMENT'
   | 'PROFILE_PHOTO'
   | 'OTHER';
 
@@ -42,6 +45,8 @@ export type ReportPage = {
 
 export const REPORT_CATEGORIES: { value: ReportCategory; label: string; hint: string }[] = [
   { value: 'HARASSMENT', label: 'Harassment', hint: 'Unwanted messages, pressure or intimidation' },
+  { value: 'MISCOMMITMENT', label: 'Did not keep the commitment', hint: 'Did not show up, changed the plan or left you stranded' },
+  { value: 'SCAM_OR_FRAUD', label: 'Scam or fraud', hint: 'False payment claim, fake ride or asking for money in a suspicious way' },
   { value: 'SAFETY_CONCERN', label: 'Safety concern', hint: 'Dangerous driving, vehicle condition, no show' },
   { value: 'INAPPROPRIATE_BEHAVIOR', label: 'Behaviour', hint: 'Rude, discriminatory or threatening conduct' },
   { value: 'MISLEADING_RIDE', label: 'Misleading ride', hint: 'Route, timing or fuel terms did not match' },

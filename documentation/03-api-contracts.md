@@ -158,7 +158,7 @@ subject_id, created_at`. The subject's `rating_average` / `rating_count` are
 trip_id, ride_id, resolution_note, resolved_at, created_at`.
 
 Categories: `INAPPROPRIATE_BEHAVIOR`, `FAKE_PROFILE`, `MISLEADING_RIDE`,
-`HARASSMENT`, `SAFETY_CONCERN`, `NON_PAYMENT` (raised from the cash-payment flow), `OTHER`.
+`HARASSMENT`, `SAFETY_CONCERN`, `MISCOMMITMENT` (a broken commitment or no-show), `SCAM_OR_FRAUD` (false payment claim or suspicious request), `NON_PAYMENT` (raised from the cash-payment flow), `OTHER`. Reports can be filed during a live trip as well as after it.
 Statuses: `OPEN → UNDER_REVIEW → RESOLVED | DISMISSED`.
 A filed report acknowledges the reporter (`REPORT_RECEIVED`) and creates a system
 notification for every active admin; resolving it notifies the reporter with the
@@ -298,9 +298,17 @@ money. It records the driver's confirmation and issues an invoice as evidence.
 | GET | `/trips/{id}/payment` | participants + admin | `PaymentOut`: `status` (`PENDING`, `VERIFIED`, `NON_PAYMENT_REPORTED`), `amount_pkr`, `invoice_number`, `verified_at`, `non_payment_report_id` |
 | POST | `/trips/{id}/payment/confirm` | driver | `{amount_pkr?: 0–100000}`; the trip must be `COMPLETED`; `VERIFIED` and issues the invoice number; passenger is notified; `409` if already settled; `403` for the passenger |
 | POST | `/trips/{id}/payment/non-payment-report` | driver | `{description: 10–1000}` → `201`; `NON_PAYMENT_REPORTED`; opens a `Report` (category `NON_PAYMENT`, subject = passenger) in the admin queue; `409` if already settled |
+| POST | `/trips/{id}/arrived` | driver | "I have arrived" at the meeting point; allowed from 30 min before departure; passenger is notified (`DRIVER_ARRIVED`); idempotent |
+| POST | `/trips/{id}/payment/mark-paid` | passenger | after the driver confirms the journey is finished; `PENDING → PAID_BY_PASSENGER`; driver is notified; no invoice yet; `409` if already marked or settled |
 | GET | `/trips/{id}/invoice` | participants + admin | `InvoiceOut`: `invoice_number`, `payment_method=CASH`, `amount_pkr`, both names, route, times; `404` until the payment is `VERIFIED` |
 
-`TripOut` also carries `payment_status`, `can_confirm_payment`,
+Payment flow: the driver confirms the journey is finished, the passenger marks the cash
+as paid (`PAID_BY_PASSENGER`), and the driver then verifies it (invoice issued) or reports
+it as not received (`NON_PAYMENT_REPORTED`). Neither side can settle the payment alone.
+The payment window opens when the driver confirms the journey is finished.
+
+`TripOut` also carries `driver_arrived_at`, `can_mark_arrived`, `fuel_contribution_type`,
+`fuel_contribution_amount`, `can_mark_paid`, `payment_status`, `can_confirm_payment`,
 `can_report_non_payment` (both true only for the driver of a completed, unsettled
 trip) and `invoice_number`. Only the driver can settle a trip, and it can be
 settled only once.

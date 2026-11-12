@@ -79,6 +79,8 @@ class Trip(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     meeting_longitude: Mapped[float | None] = mapped_column(nullable=True)
 
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    #: When the driver marked "I have arrived" at the meeting point.
+    driver_arrived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     cancelled_by_id: Mapped[uuid.UUID | None] = mapped_column(

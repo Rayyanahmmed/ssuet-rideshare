@@ -12,14 +12,16 @@ import {
   confirmPayment,
   getInvoice,
   getTrip,
+  markArrived,
   markNoShow,
+  markPaid,
   reportNonPayment,
   startTrip,
   type Trip,
   type TripStatus,
 } from '@/api/trips';
 import { Avatar, Badge, Banner, Button, Card } from '@/components/ui';
-import { formatDeparture, relativeDay } from '@/lib/format';
+import { formatDeparture, relativeDay, rupees } from '@/lib/format';
 import { colors, radius, spacing, typography } from '@/theme';
 import { appAlert } from '@/lib/appAlert';
 
@@ -158,6 +160,25 @@ export default function TripScreen() {
     onError: (err) => setError(err instanceof ApiError ? err.message : 'The report could not be sent.'),
   });
 
+  const arriveMutation = useMutation({
+    mutationFn: () => markArrived(id),
+    onSuccess: async (trip) => {
+      setError(null);
+      await refresh(trip);
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : 'Could not mark your arrival.'),
+  });
+
+  const markPaidMutation = useMutation({
+    mutationFn: () => markPaid(id),
+    onSuccess: async () => {
+      setError(null);
+      await refresh(await getTrip(id));
+      appAlert('Payment marked', 'The driver has been asked to confirm the cash was received.');
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : 'Could not mark the payment.'),
+  });
+
   const noShowMutation = useMutation({
     mutationFn: (note?: string) => markNoShow(id, note),
     onSuccess: refresh,
@@ -206,6 +227,65 @@ export default function TripScreen() {
     }
     void Linking.openURL(`tel:${counterpart.phone}`);
   };
+
+  const paymentOpen =
+    trip.status === 'COMPLETED' ||
+    (trip.status === 'IN_PROGRESS' && trip.driver_confirmed_complete) ||
+    trip.payment_status !== null;
+
+  const driverSettle = (
+    <>
+      <TextInput
+        style={styles.amountInput}
+        placeholder="Amount received in Rs (optional)"
+        keyboardType="number-pad"
+        value={amountPkr}
+        onChangeText={setAmountPkr}
+      />
+      <Button
+        label="Cash received, verify payment"
+        icon="cash-outline"
+        loading={confirmPaymentMutation.isPending}
+        onPress={() => confirmPaymentMutation.mutate()}
+      />
+      {showNonPayment ? (
+        <>
+          <TextInput
+            style={styles.input}
+            placeholder="Describe what happened (10 characters or more)"
+            value={nonPaymentNote}
+            onChangeText={setNonPaymentNote}
+            multiline
+          />
+          <View style={styles.actionRow}>
+            <Button
+              label="Send report"
+              variant="danger"
+              fullWidth={false}
+              loading={nonPaymentMutation.isPending}
+              disabled={nonPaymentNote.trim().length < 10}
+              onPress={() => nonPaymentMutation.mutate()}
+            />
+            <Button label="Back" variant="ghost" fullWidth={false} onPress={() => setShowNonPayment(false)} />
+          </View>
+        </>
+      ) : (
+        <Button
+          label={`${firstName} has not paid`}
+          variant="secondary"
+          icon="alert-circle-outline"
+          onPress={() => setShowNonPayment(true)}
+        />
+      )}
+    </>
+  );
+
+  const agreedAmount =
+    trip.fuel_contribution_type === 'NEGOTIABLE'
+      ? 'Negotiable. Agree the amount with ' + firstName + ' before the trip.'
+      : trip.fuel_contribution_amount
+        ? `${rupees(trip.fuel_contribution_amount)} per passenger`
+        : 'Amount not set by the driver';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -270,6 +350,47 @@ export default function TripScreen() {
           </Text>
         </Card>
 
+        {trip.driver_arrived_at && !isDriver ? (
+          <Banner
+            tone="info"
+            title="Driver has arrived"
+            message="Head to the meeting point now. The journey is ready to start."
+          />
+        ) : null}
+
+        {live && trip.fuel_preference === 'SHARE_FUEL' ? (
+          <Card style={styles.card}>
+            <Text style={styles.sectionLabel}>Fuel share agreement</Text>
+            <Text style={styles.route}>{agreedAmount}</Text>
+            <Text style={styles.hint}>
+              Paid in cash at the meeting point. After the journey the driver confirms the cash was
+              received, and an invoice is issued as evidence.
+            </Text>
+          </Card>
+        ) : null}
+
+        {live && isDriver ? (
+          <Card style={styles.card}>
+            <Text style={styles.sectionLabel}>Meeting point</Text>
+            {trip.driver_arrived_at ? (
+              <Badge label="You marked arrival" tone="success" icon="location-outline" />
+            ) : (
+              <Text style={styles.hint}>
+                When you reach {trip.meeting_point ?? 'the meeting point'}, tap below. {firstName} is
+                told straight away.
+              </Text>
+            )}
+            {trip.can_mark_arrived ? (
+              <Button
+                label="I have arrived at the meeting point"
+                icon="location-outline"
+                loading={arriveMutation.isPending}
+                onPress={() => arriveMutation.mutate()}
+              />
+            ) : null}
+          </Card>
+        ) : null}
+
         {trip.status === 'IN_PROGRESS' ? (
           <Card style={styles.card}>
             <Text style={styles.sectionLabel}>Completion</Text>
@@ -294,7 +415,7 @@ export default function TripScreen() {
           </Card>
         ) : null}
 
-        {trip.status === 'COMPLETED' ? (
+        {paymentOpen ? (
           <Card style={styles.card}>
             <Text style={styles.sectionLabel}>Cash payment</Text>
             {trip.payment_status === 'VERIFIED' ? (
@@ -310,60 +431,48 @@ export default function TripScreen() {
               </>
             ) : trip.payment_status === 'NON_PAYMENT_REPORTED' ? (
               <Banner tone="warning" message="A non-payment report is open. The SSUET ride-share office will review it." />
+            ) : trip.payment_status === 'PAID_BY_PASSENGER' ? (
+              isDriver ? (
+                <>
+                  <Banner
+                    tone="info"
+                    title="Passenger says the cash is paid"
+                    message="Confirm only if you have received the cash. If it has not arrived, report it."
+                  />
+                  {driverSettle}
+                </>
+              ) : (
+                <Banner
+                  tone="info"
+                  title="Waiting for the driver"
+                  message="The driver will confirm that the cash was received. The invoice appears here once they do."
+                />
+              )
             ) : isDriver ? (
               <>
                 <Text style={styles.hint}>
                   Once {firstName} has paid you in cash, confirm it here. This creates a verified
                   transaction and an invoice you can show as evidence.
                 </Text>
-                <TextInput
-                  style={styles.amountInput}
-                  placeholder="Amount received in Rs (optional)"
-                  keyboardType="number-pad"
-                  value={amountPkr}
-                  onChangeText={setAmountPkr}
-                />
-                <Button
-                  label="Cash received, verify payment"
-                  icon="cash-outline"
-                  loading={confirmPaymentMutation.isPending}
-                  onPress={() => confirmPaymentMutation.mutate()}
-                />
-                {showNonPayment ? (
-                  <>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Describe what happened (10 characters or more)"
-                      value={nonPaymentNote}
-                      onChangeText={setNonPaymentNote}
-                      multiline
-                    />
-                    <View style={styles.actionRow}>
-                      <Button
-                        label="Send report"
-                        variant="danger"
-                        fullWidth={false}
-                        loading={nonPaymentMutation.isPending}
-                        disabled={nonPaymentNote.trim().length < 10}
-                        onPress={() => nonPaymentMutation.mutate()}
-                      />
-                      <Button label="Back" variant="ghost" fullWidth={false} onPress={() => setShowNonPayment(false)} />
-                    </View>
-                  </>
-                ) : (
-                  <Button
-                    label={`${firstName} has not paid`}
-                    variant="secondary"
-                    icon="alert-circle-outline"
-                    onPress={() => setShowNonPayment(true)}
-                  />
-                )}
+                {driverSettle}
               </>
             ) : (
-              <Text style={styles.hint}>
-                Your driver will confirm your cash payment here. Once it is verified, the invoice
-                appears on this screen as evidence.
-              </Text>
+              <>
+                <Text style={styles.hint}>
+                  After the journey, tap below once you have paid the cash fuel share. Your driver then
+                  confirms it, and the invoice is issued.
+                </Text>
+                {trip.can_mark_paid ? (
+                  <Button
+                    label="I have paid the cash"
+                    icon="cash-outline"
+                    loading={markPaidMutation.isPending}
+                    onPress={() => markPaidMutation.mutate()}
+                  />
+                ) : (
+                  <Text style={styles.hint}>The payment opens when the driver confirms the journey is finished.</Text>
+                )}
+              </>
             )}
           </Card>
         ) : null}
@@ -392,12 +501,13 @@ export default function TripScreen() {
           </Card>
         ) : null}
 
-        {['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(trip.status) ? (
+        {trip.id ? (
           <Card style={styles.card}>
             <Text style={styles.sectionLabel}>Safety &amp; support</Text>
             <Text style={styles.hint}>
-              Something felt wrong on this journey? Reports go straight to the SSUET ride-share
-              office and you will see the outcome here.
+              Something went wrong? You can report harassment, a broken commitment, a scam or a
+              payment problem at any time. Reports go straight to the SSUET ride-share office and you
+              will see the outcome here.
             </Text>
             <View style={styles.actionRow}>
               <Button

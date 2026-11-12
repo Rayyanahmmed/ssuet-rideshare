@@ -16,7 +16,7 @@ export type TripStatus = 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
 export type TripRole = 'DRIVER' | 'PASSENGER';
 
 /** Cash payment state for a trip. PENDING means nothing has been recorded yet. */
-export type PaymentStatus = 'PENDING' | 'VERIFIED' | 'NON_PAYMENT_REPORTED';
+export type PaymentStatus = 'PENDING' | 'PAID_BY_PASSENGER' | 'VERIFIED' | 'NON_PAYMENT_REPORTED';
 
 export type Payment = {
   trip_id: string;
@@ -85,7 +85,13 @@ export type Trip = {
   can_review: boolean;
   viewer_reviewed: boolean;
 
+  driver_arrived_at: string | null;
+  can_mark_arrived: boolean;
+  fuel_contribution_type: 'NONE' | 'FIXED' | 'EXPECTED' | 'NEGOTIABLE' | null;
+  fuel_contribution_amount: number | null;
+
   payment_status: PaymentStatus | null;
+  can_mark_paid: boolean;
   can_confirm_payment: boolean;
   can_report_non_payment: boolean;
   invoice_number: string | null;
@@ -158,5 +164,17 @@ export async function reportNonPayment(id: string, description: string): Promise
 
 export async function getInvoice(id: string): Promise<Invoice> {
   const { data } = await api.get<Invoice>(`/trips/${id}/invoice`);
+  return data;
+}
+
+/** Driver says "I have arrived" at the meeting point. The passenger is notified. */
+export async function markArrived(id: string): Promise<Trip> {
+  const { data } = await api.post<Trip>(`/trips/${id}/arrived`);
+  return data;
+}
+
+/** Passenger says the cash fuel share is paid. The driver must then verify it. */
+export async function markPaid(id: string): Promise<Payment> {
+  const { data } = await api.post<Payment>(`/trips/${id}/payment/mark-paid`);
   return data;
 }
