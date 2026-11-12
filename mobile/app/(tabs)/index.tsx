@@ -131,12 +131,12 @@ export default function HomeScreen() {
           <QuickAction
             icon="home-outline"
             label="To university"
-            onPress={() => router.push('/(tabs)/explore')}
+            onPress={() => router.push({ pathname: '/(tabs)/explore', params: { direction: 'HOME_TO_UNIVERSITY' } })}
           />
           <QuickAction
             icon="moon-outline"
             label="Back home"
-            onPress={() => router.push('/(tabs)/explore')}
+            onPress={() => router.push({ pathname: '/(tabs)/explore', params: { direction: 'UNIVERSITY_TO_HOME' } })}
           />
           <QuickAction
             icon="chatbubbles-outline"

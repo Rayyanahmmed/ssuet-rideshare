@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { TextField } from '@/components/ui';
 import { WebMap } from '@/components/map/WebMap';
-import { reverseGeocode } from '@/api/maps';
+import { reverseGeocode, searchPlaces } from '@/api/maps';
 import { AREAS, findArea, SSUET, type AreaPoint } from '@/lib/areas';
 import { colors, radius, spacing, typography } from '@/theme';
 
@@ -94,6 +94,34 @@ export function LocationPicker({ label, value, point, onChange, error }: Props) 
 
   const centre = point ?? SSUET;
 
+  /**
+   * Typed address → look it up on the server and move the pin there. Exact area names are
+   * answered from the local list; anything else waits for the user to pause typing.
+   */
+  const searchSeq = useRef(0);
+  const typedRef = useRef(false);
+  useEffect(() => {
+    // Only text the user typed moves the pin. Map taps and GPS fill the name themselves, and
+    // must not be overridden by a lookup of that name.
+    if (!typedRef.current) return;
+    typedRef.current = false;
+    const query = value.trim();
+    if (query.length < 3 || findArea(query)) return;
+    const seq = ++searchSeq.current;
+    const timer = setTimeout(() => {
+      searchPlaces(query, 1)
+        .then((results) => {
+          if (seq !== searchSeq.current || results.length === 0) return;
+          const best = results[0]!;
+          onChange(query, { name: query, latitude: best.latitude, longitude: best.longitude });
+        })
+        .catch(() => undefined); // offline: the typed name stays, the pin stays where it was
+    }, 600);
+    return () => clearTimeout(timer);
+    // Only re-run when the typed text changes, not on every pin move.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
   return (
     <View style={styles.wrap}>
       <TextField
@@ -101,9 +129,10 @@ export function LocationPicker({ label, value, point, onChange, error }: Props) 
         placeholder="Search an area, e.g. Gulshan-e-Iqbal"
         icon="location-outline"
         value={value}
-        onChangeText={(text) =>
-          onChange(text, findArea(text) ?? { name: text, latitude: centre.latitude, longitude: centre.longitude })
-        }
+        onChangeText={(text) => {
+          typedRef.current = true;
+          onChange(text, findArea(text) ?? { name: text, latitude: centre.latitude, longitude: centre.longitude });
+        }}
         error={error}
         hint="Only this area name is shown to other members before a match."
       />
@@ -140,7 +169,7 @@ export function LocationPicker({ label, value, point, onChange, error }: Props) 
         latitude={centre.latitude}
         longitude={centre.longitude}
         editable
-        height={190}
+        height={280}
         hint="Tap the map or drag the pin to set the exact meeting point"
         onPin={handlePin}
       />

@@ -1,9 +1,9 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ApiError } from '@/api/client';
 import { listRides, type Direction, type Ride, type RideFilters } from '@/api/rides';
 import { RideCard } from '@/components/RideCard';
@@ -19,7 +19,15 @@ export default function ExploreScreen() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
 
-  const [direction, setDirection] = useState<Direction>('HOME_TO_UNIVERSITY');
+  const params = useLocalSearchParams<{ direction?: string }>();
+  const initialDirection: Direction =
+    params.direction === 'UNIVERSITY_TO_HOME' ? 'UNIVERSITY_TO_HOME' : 'HOME_TO_UNIVERSITY';
+  const [direction, setDirection] = useState<Direction>(initialDirection);
+
+  // Home buttons reuse this screen, so follow the param whenever it changes.
+  useEffect(() => {
+    setDirection(initialDirection);
+  }, [initialDirection]);
   const [fuel, setFuel] = useState<FuelFilter>('ALL');
   const [vehicle, setVehicle] = useState<VehicleFilter>('ALL');
   const [area, setArea] = useState('');
