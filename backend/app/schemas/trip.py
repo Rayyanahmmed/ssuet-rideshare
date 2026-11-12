@@ -60,6 +60,12 @@ class TripOut(BaseModel):
     passenger_confirmed_complete: bool = False
     awaiting_my_confirmation: bool = False
 
+    # --- cash payment (payment feature) ---
+    payment_status: str | None = None
+    can_confirm_payment: bool = False
+    can_report_non_payment: bool = False
+    invoice_number: str | None = None
+
     # --- reviews (Phase 7) ---
     can_review: bool = False
     viewer_reviewed: bool = False

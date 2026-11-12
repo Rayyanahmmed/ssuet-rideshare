@@ -14,6 +14,7 @@ from app.models.enums import (
     ContributionType,
     FuelPreference,
     NotificationType,
+    PaymentStatus,
     ReportCategory,
     ReportStatus,
     RideDirection,
@@ -28,6 +29,7 @@ from app.models.enums import (
 )
 from app.models.media import MediaAsset
 from app.models.notification import DeviceToken, Notification
+from app.models.payment import TripPayment
 from app.models.report import Report
 from app.models.review import Review
 from app.models.ride import Ride, RideRequest
@@ -55,6 +57,7 @@ __all__ = [
     "Notification", "DeviceToken",
     "MediaAsset",
     "Review",
+    "TripPayment",
     "Report",
     "Verification",
     "AdminAction",
@@ -62,6 +65,6 @@ __all__ = [
     "UserRole", "AccountStatus", "VerificationStatus", "VerificationType",
     "VehicleType", "VehicleStatus", "RideDirection", "FuelPreference",
     "ContributionType", "RideStatus", "RideRequestStatus", "TripStatus",
-    "NotificationType", "ReportCategory", "ReportStatus", "AdminActionType",
+    "NotificationType", "ReportCategory", "ReportStatus", "AdminActionType", "PaymentStatus",
     "AppSetting",
 ]

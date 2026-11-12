@@ -40,12 +40,14 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError, ValidationAppError
 from app.models.chat import Conversation
+from app.models.payment import TripPayment
 from app.models.enums import (
     RIDE_STATUS_TRANSITIONS,
     TRIP_STATUS_TRANSITIONS,
     RideRequestStatus,
     RideStatus,
     TripStatus,
+    PaymentStatus,
     UserRole,
 )
 from app.models.ride import Ride, RideRequest
@@ -209,6 +211,15 @@ def serialize_trip(db: Session, trip: Trip, viewer: User) -> TripOut:
         and now >= departure - timedelta(minutes=30)
     )
 
+    payment = db.scalar(select(TripPayment).where(TripPayment.trip_id == trip.id))
+    payment_status = payment.status if payment is not None else None
+    payment_settled = payment_status in (PaymentStatus.VERIFIED, PaymentStatus.NON_PAYMENT_REPORTED)
+    # Cash payment is recorded by the driver once the trip is completed and not yet settled.
+    can_settle_payment = bool(is_driver and trip.status is TripStatus.COMPLETED and not payment_settled)
+    invoice_number = (
+        payment.invoice_number if payment is not None and payment_status is PaymentStatus.VERIFIED else None
+    )
+
     return TripOut(
         id=trip.id,
         ride_id=trip.ride_id,
@@ -263,6 +274,10 @@ def serialize_trip(db: Session, trip: Trip, viewer: User) -> TripOut:
         can_complete=can_complete,
         can_cancel=can_cancel,
         can_mark_no_show=can_mark_no_show,
+        payment_status=payment_status.value if payment_status is not None else None,
+        can_confirm_payment=can_settle_payment,
+        can_report_non_payment=can_settle_payment,
+        invoice_number=invoice_number,
         created_at=_aware(trip.created_at),
     )
 

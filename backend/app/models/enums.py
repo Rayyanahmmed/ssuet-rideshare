@@ -104,6 +104,7 @@ class NotificationType(StrEnum):
     TRIP_AWAITING_CONFIRMATION = "TRIP_AWAITING_CONFIRMATION"
     TRIP_NO_SHOW = "TRIP_NO_SHOW"
     TRIP_COMPLETED = "TRIP_COMPLETED"
+    PAYMENT_CONFIRMED = "PAYMENT_CONFIRMED"
     ACCOUNT_VERIFIED = "ACCOUNT_VERIFIED"
     ACCOUNT_SUSPENDED = "ACCOUNT_SUSPENDED"
     ACCOUNT_REACTIVATED = "ACCOUNT_REACTIVATED"
@@ -122,6 +123,7 @@ class ReportCategory(StrEnum):
     MISLEADING_RIDE = "MISLEADING_RIDE"
     HARASSMENT = "HARASSMENT"
     SAFETY_CONCERN = "SAFETY_CONCERN"
+    NON_PAYMENT = "NON_PAYMENT"  # Payment feature: driver reports a passenger who did not pay
     PROFILE_PHOTO = "PROFILE_PHOTO"  # Phase 15 — the picture, not the behaviour
     OTHER = "OTHER"
 
@@ -141,6 +143,19 @@ PHOTO_REPORT_REASON_LABELS: dict[str, str] = {
     "IMPERSONATION": "Someone else's photo",
     "OTHER": "Something else",
 }
+
+
+class PaymentStatus(StrEnum):
+    """Cash fuel payment for a completed trip (payment feature).
+
+    PENDING is implicit (no row yet). The driver either confirms the cash was
+    received (VERIFIED, invoice issued) or reports that it was not paid
+    (NON_PAYMENT_REPORTED, a report is opened for the admin office).
+    """
+
+    PENDING = "PENDING"
+    VERIFIED = "VERIFIED"
+    NON_PAYMENT_REPORTED = "NON_PAYMENT_REPORTED"
 
 
 class ReportStatus(StrEnum):

@@ -9,8 +9,11 @@ import { ApiError, api } from '@/api/client';
 import {
   cancelTrip,
   completeTrip,
+  confirmPayment,
+  getInvoice,
   getTrip,
   markNoShow,
+  reportNonPayment,
   startTrip,
   type Trip,
   type TripStatus,
@@ -43,8 +46,17 @@ export default function TripScreen() {
   const [reason, setReason] = useState('');
   const [showReason, setShowReason] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [amountPkr, setAmountPkr] = useState('');
+  const [showNonPayment, setShowNonPayment] = useState(false);
+  const [nonPaymentNote, setNonPaymentNote] = useState('');
 
   const query = useQuery({ queryKey: ['trip', id], queryFn: () => getTrip(id), enabled: Boolean(id) });
+
+  const invoiceQuery = useQuery({
+    queryKey: ['invoice', id],
+    queryFn: () => getInvoice(id),
+    enabled: Boolean(id) && query.data?.payment_status === 'VERIFIED',
+  });
 
   const refresh = async (trip: Trip) => {
     queryClient.setQueryData(['trip', trip.id], trip);
@@ -115,6 +127,35 @@ export default function TripScreen() {
     },
     onError: (err) =>
       appAlert('Could not block', err instanceof ApiError ? err.message : 'Please try again.'),
+  });
+
+  const confirmPaymentMutation = useMutation({
+    mutationFn: () => {
+      const parsed = Number.parseInt(amountPkr, 10);
+      return confirmPayment(id, Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined);
+    },
+    onSuccess: async (payment) => {
+      setError(null);
+      await refresh(await getTrip(id));
+      await queryClient.invalidateQueries({ queryKey: ['invoice', id] });
+      queryClient.setQueryData(['trip', id], (current: Trip | undefined) =>
+        current ? { ...current, payment_status: payment.status, invoice_number: payment.invoice_number, can_confirm_payment: false, can_report_non_payment: false } : current,
+      );
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : 'The payment could not be recorded.'),
+  });
+
+  const nonPaymentMutation = useMutation({
+    mutationFn: () => reportNonPayment(id, nonPaymentNote.trim()),
+    onSuccess: async () => {
+      setError(null);
+      setShowNonPayment(false);
+      setNonPaymentNote('');
+      await refresh(await getTrip(id));
+      await queryClient.invalidateQueries({ queryKey: ['my-reports'] });
+      appAlert('Report sent', 'The SSUET ride-share office will review this non-payment report.');
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : 'The report could not be sent.'),
   });
 
   const noShowMutation = useMutation({
@@ -250,6 +291,80 @@ export default function TripScreen() {
           <Card style={styles.card}>
             <Text style={styles.sectionLabel}>Why</Text>
             <Text style={styles.body}>{trip.cancellation_reason ?? 'No reason recorded.'}</Text>
+          </Card>
+        ) : null}
+
+        {trip.status === 'COMPLETED' ? (
+          <Card style={styles.card}>
+            <Text style={styles.sectionLabel}>Cash payment</Text>
+            {trip.payment_status === 'VERIFIED' ? (
+              <>
+                <Badge label="Verified transaction" tone="success" icon="shield-checkmark-outline" />
+                <Text style={styles.hint}>Invoice {trip.invoice_number}</Text>
+                {invoiceQuery.data ? (
+                  <Text style={styles.hint}>
+                    Amount: {invoiceQuery.data.amount_pkr !== null ? `Rs ${invoiceQuery.data.amount_pkr}` : 'not recorded'} (cash)
+                    {'\n'}Driver: {invoiceQuery.data.driver_name} · Passenger: {invoiceQuery.data.passenger_name}
+                  </Text>
+                ) : null}
+              </>
+            ) : trip.payment_status === 'NON_PAYMENT_REPORTED' ? (
+              <Banner tone="warning" message="A non-payment report is open. The SSUET ride-share office will review it." />
+            ) : isDriver ? (
+              <>
+                <Text style={styles.hint}>
+                  Once {firstName} has paid you in cash, confirm it here. This creates a verified
+                  transaction and an invoice you can show as evidence.
+                </Text>
+                <TextInput
+                  style={styles.amountInput}
+                  placeholder="Amount received in Rs (optional)"
+                  keyboardType="number-pad"
+                  value={amountPkr}
+                  onChangeText={setAmountPkr}
+                />
+                <Button
+                  label="Cash received, verify payment"
+                  icon="cash-outline"
+                  loading={confirmPaymentMutation.isPending}
+                  onPress={() => confirmPaymentMutation.mutate()}
+                />
+                {showNonPayment ? (
+                  <>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Describe what happened (10 characters or more)"
+                      value={nonPaymentNote}
+                      onChangeText={setNonPaymentNote}
+                      multiline
+                    />
+                    <View style={styles.actionRow}>
+                      <Button
+                        label="Send report"
+                        variant="danger"
+                        fullWidth={false}
+                        loading={nonPaymentMutation.isPending}
+                        disabled={nonPaymentNote.trim().length < 10}
+                        onPress={() => nonPaymentMutation.mutate()}
+                      />
+                      <Button label="Back" variant="ghost" fullWidth={false} onPress={() => setShowNonPayment(false)} />
+                    </View>
+                  </>
+                ) : (
+                  <Button
+                    label={`${firstName} has not paid`}
+                    variant="secondary"
+                    icon="alert-circle-outline"
+                    onPress={() => setShowNonPayment(true)}
+                  />
+                )}
+              </>
+            ) : (
+              <Text style={styles.hint}>
+                Your driver will confirm your cash payment here. Once it is verified, the invoice
+                appears on this screen as evidence.
+              </Text>
+            )}
           </Card>
         ) : null}
 
@@ -497,6 +612,14 @@ const styles = StyleSheet.create({
   hint: { color: colors.textMuted, ...typography.caption, lineHeight: 17 },
   confirmRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   actionRow: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
+  amountInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    color: colors.text,
+    ...typography.body,
+  },
   input: {
     borderWidth: 1,
     borderColor: colors.border,

@@ -15,6 +15,34 @@ type VehicleSummary = {
 export type TripStatus = 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
 export type TripRole = 'DRIVER' | 'PASSENGER';
 
+/** Cash payment state for a trip. PENDING means nothing has been recorded yet. */
+export type PaymentStatus = 'PENDING' | 'VERIFIED' | 'NON_PAYMENT_REPORTED';
+
+export type Payment = {
+  trip_id: string;
+  status: PaymentStatus;
+  amount_pkr: number | null;
+  invoice_number: string | null;
+  verified_at: string | null;
+  non_payment_report_id: string | null;
+};
+
+export type Invoice = {
+  invoice_number: string;
+  trip_id: string;
+  issued_at: string;
+  payment_method: 'CASH';
+  amount_pkr: number | null;
+  status: PaymentStatus;
+  driver_name: string;
+  passenger_name: string;
+  pickup_area: string | null;
+  destination_area: string | null;
+  departure_at: string | null;
+  completed_at: string | null;
+  note: string;
+};
+
 export type Counterpart = {
   id: string;
   full_name: string;
@@ -56,6 +84,11 @@ export type Trip = {
 
   can_review: boolean;
   viewer_reviewed: boolean;
+
+  payment_status: PaymentStatus | null;
+  can_confirm_payment: boolean;
+  can_report_non_payment: boolean;
+  invoice_number: string | null;
 
   my_role: TripRole;
   can_start: boolean;
@@ -106,5 +139,24 @@ export async function cancelTrip(id: string, reason?: string): Promise<Trip> {
 
 export async function markNoShow(id: string, reason?: string): Promise<Trip> {
   const { data } = await api.post<Trip>(`/trips/${id}/no-show`, { reason });
+  return data;
+}
+
+/** Driver confirms the cash was received. Creates the verified transaction and invoice. */
+export async function confirmPayment(id: string, amountPkr?: number): Promise<Payment> {
+  const { data } = await api.post<Payment>(`/trips/${id}/payment/confirm`, {
+    amount_pkr: amountPkr ?? null,
+  });
+  return data;
+}
+
+/** Driver reports that the passenger did not pay. Opens a report for the admin office. */
+export async function reportNonPayment(id: string, description: string): Promise<Payment> {
+  const { data } = await api.post<Payment>(`/trips/${id}/payment/non-payment-report`, { description });
+  return data;
+}
+
+export async function getInvoice(id: string): Promise<Invoice> {
+  const { data } = await api.get<Invoice>(`/trips/${id}/invoice`);
   return data;
 }

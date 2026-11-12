@@ -1,0 +1,223 @@
+"""Cash payment record and invoice for a completed trip (payment feature).
+
+Rules encoded here:
+
+* Only a **completed** trip can be settled. The payment is for the fuel share of a
+  journey that actually happened, so it comes after both members confirm the trip.
+* Only the **driver** records the outcome. The passenger cannot mark their own
+  payment as received.
+* A trip is settled **once**. After VERIFIED or NON_PAYMENT_REPORTED, no further
+  change is accepted from the driver. This keeps the evidence stable.
+* A non-payment report is a normal `Report` (category NON_PAYMENT) against the
+  passenger. It enters the same admin queue as every other report and reaches the
+  admin's notifications.
+* The invoice is visible to both participants, but only after verification.
+"""
+
+from __future__ import annotations
+
+import logging
+import uuid
+from datetime import UTC, datetime
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
+from app.models.enums import (
+    AccountStatus,
+    PaymentStatus,
+    ReportCategory,
+    ReportStatus,
+    TripStatus,
+    UserRole,
+)
+from app.models.payment import TripPayment
+from app.models.report import Report
+from app.models.trip import Trip
+from app.models.user import User
+from app.schemas.payment import InvoiceOut, PaymentOut
+from app.services.notification_service import create_notification_from_template
+from app.services.trip_service import get_trip_or_404, load_trip_for
+
+logger = logging.getLogger("ssuet.rideshare.payments")
+
+
+def _utcnow() -> datetime:
+    return datetime.now(UTC)
+
+
+def _aware(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    return value if value.tzinfo else value.replace(tzinfo=UTC)
+
+
+def _payment_for(db: Session, trip: Trip) -> TripPayment | None:
+    return db.scalar(select(TripPayment).where(TripPayment.trip_id == trip.id))
+
+
+def _payment_out(trip: Trip, payment: TripPayment | None) -> PaymentOut:
+    if payment is None:
+        return PaymentOut(trip_id=trip.id, status=PaymentStatus.PENDING)
+    return PaymentOut(
+        trip_id=trip.id,
+        status=payment.status,
+        amount_pkr=payment.amount_pkr,
+        invoice_number=payment.invoice_number,
+        verified_at=_aware(payment.verified_at),
+        non_payment_report_id=payment.non_payment_report_id,
+    )
+
+
+def _require_driver_of_completed_trip(db: Session, trip_id: uuid.UUID, actor: User) -> Trip:
+    trip = get_trip_or_404(db, trip_id)
+    if trip.driver_id != actor.id:
+        raise ForbiddenError("Only the driver can record the payment for this trip.")
+    if trip.status is not TripStatus.COMPLETED:
+        raise ConflictError("The payment can be recorded only after the trip is completed.")
+    return trip
+
+
+def _ensure_not_settled(payment: TripPayment | None) -> None:
+    if payment is None:
+        return
+    if payment.status is PaymentStatus.VERIFIED:
+        raise ConflictError("This payment is already verified.")
+    if payment.status is PaymentStatus.NON_PAYMENT_REPORTED:
+        raise ConflictError(
+            "A non-payment report is already open for this trip. The ride-share office will review it."
+        )
+
+
+def _invoice_number(trip: Trip, verified_at: datetime) -> str:
+    return f"SRS-{verified_at:%Y%m%d}-{trip.id.hex[:8].upper()}"
+
+
+def get_payment(db: Session, trip_id: uuid.UUID, viewer: User) -> PaymentOut:
+    trip = load_trip_for(db, trip_id, viewer)
+    return _payment_out(trip, _payment_for(db, trip))
+
+
+def confirm_cash_payment(
+    db: Session, trip_id: uuid.UUID, driver: User, amount_pkr: int | None = None
+) -> PaymentOut:
+    """Driver confirms the cash was received → VERIFIED, invoice issued."""
+
+    trip = _require_driver_of_completed_trip(db, trip_id, driver)
+    payment = _payment_for(db, trip)
+    _ensure_not_settled(payment)
+
+    now = _utcnow()
+    if payment is None:
+        payment = TripPayment(
+            trip_id=trip.id,
+            driver_id=trip.driver_id,
+            passenger_id=trip.passenger_id,
+        )
+        db.add(payment)
+    payment.status = PaymentStatus.VERIFIED
+    payment.amount_pkr = amount_pkr
+    payment.verified_at = now
+    payment.invoice_number = _invoice_number(trip, now)
+    db.flush()
+
+    ride = trip.ride
+    create_notification_from_template(
+        db,
+        user_id=trip.passenger_id,
+        template="PAYMENT_CONFIRMED",
+        commit=False,
+        driver_name=driver.full_name,
+        area=ride.pickup_area if ride is not None else "",
+        invoice_number=payment.invoice_number,
+        data={"screen": "trip", "trip_id": str(trip.id)},
+    )
+    db.commit()
+    db.refresh(payment)
+    logger.info("cash payment verified for trip %s, invoice %s", trip.id, payment.invoice_number)
+    return _payment_out(trip, payment)
+
+
+def report_non_payment(
+    db: Session, trip_id: uuid.UUID, driver: User, description: str
+) -> PaymentOut:
+    """Driver reports that the passenger did not pay → NON_PAYMENT_REPORTED + Report."""
+
+    trip = _require_driver_of_completed_trip(db, trip_id, driver)
+    payment = _payment_for(db, trip)
+    _ensure_not_settled(payment)
+
+    report = Report(
+        reporter_id=driver.id,
+        reported_user_id=trip.passenger_id,
+        trip_id=trip.id,
+        ride_id=trip.ride_id,
+        category=ReportCategory.NON_PAYMENT,
+        description=" ".join(description.split()),
+        status=ReportStatus.OPEN,
+    )
+    db.add(report)
+    db.flush()
+
+    if payment is None:
+        payment = TripPayment(
+            trip_id=trip.id,
+            driver_id=trip.driver_id,
+            passenger_id=trip.passenger_id,
+        )
+        db.add(payment)
+    payment.status = PaymentStatus.NON_PAYMENT_REPORTED
+    payment.non_payment_report_id = report.id
+    db.flush()
+
+    create_notification_from_template(
+        db,
+        user_id=driver.id,
+        template="REPORT_RECEIVED",
+        commit=False,
+        data={"report_id": str(report.id)},
+        reported_name=trip.passenger.full_name.split(" ")[0],
+    )
+    admins = db.scalars(
+        select(User).where(User.role == UserRole.ADMIN, User.account_status == AccountStatus.ACTIVE)
+    ).all()
+    for admin in admins:
+        create_notification_from_template(
+            db,
+            user_id=admin.id,
+            template="ADMIN_NEW_REPORT",
+            commit=False,
+            data={"report_id": str(report.id)},
+            reporter_name=driver.full_name,
+            reported_name=trip.passenger.full_name,
+            category=ReportCategory.NON_PAYMENT.value,
+        )
+    db.commit()
+    db.refresh(payment)
+    logger.info("non-payment report %s opened for trip %s", report.id, trip.id)
+    return _payment_out(trip, payment)
+
+
+def get_invoice(db: Session, trip_id: uuid.UUID, viewer: User) -> InvoiceOut:
+    """Invoice for a verified payment. Only the two participants (or an admin)."""
+
+    trip = load_trip_for(db, trip_id, viewer)
+    payment = _payment_for(db, trip)
+    if payment is None or payment.status is not PaymentStatus.VERIFIED or payment.invoice_number is None:
+        raise NotFoundError("No verified payment exists for this trip yet, so there is no invoice.")
+
+    ride = trip.ride
+    return InvoiceOut(
+        invoice_number=payment.invoice_number,
+        trip_id=trip.id,
+        issued_at=_aware(payment.verified_at) or _utcnow(),
+        amount_pkr=payment.amount_pkr,
+        status=payment.status,
+        driver_name=trip.driver.full_name,
+        passenger_name=trip.passenger.full_name,
+        pickup_area=ride.pickup_area if ride is not None else None,
+        destination_area=ride.destination_area if ride is not None else None,
+        departure_at=_aware(ride.departure_at) if ride is not None else None,
+        completed_at=_aware(trip.completed_at),
+    )
