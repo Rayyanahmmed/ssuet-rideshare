@@ -64,6 +64,8 @@ def test_university_bound_ride_requires_a_pickup(client):
         ({"fuel_preference": "SHARE_FUEL", "contribution_type": "NONE"}, "share fuel without a type"),
         ({"fuel_preference": "SHARE_FUEL", "contribution_type": "NEGOTIABLE", "contribution_amount": 100}, "negotiable with an amount"),
         ({"vehicle_id": str(uuid.uuid4())}, "unknown vehicle"),
+        ({"fuel_preference": "SHARE_FUEL", "contribution_type": "FIXED"}, "fixed share without an amount"),
+        ({"fuel_preference": "SHARE_FUEL", "contribution_type": "EXPECTED", "contribution_amount": 0}, "expected share of zero"),
     ],
 )
 def test_publish_validation(client, overrides, reason):
@@ -374,3 +376,32 @@ def test_my_rides_list_and_status_filter(client):
     cancelled_only = client.get("/api/v1/rides/mine?status=CANCELLED", headers=driver["headers"]).json()
     assert open_only == []
     assert len(cancelled_only) == 1
+
+
+def test_editing_a_ride_to_fixed_share_needs_an_amount(client):
+    """A ride cannot be switched to a fixed or expected share without an amount (edit path)."""
+    driver = register(client)
+    vehicle = create_vehicle(client, driver["headers"])
+    ride = publish(
+        client,
+        driver["headers"],
+        vehicle["id"],
+        fuel_preference="SHARE_FUEL",
+        contribution_type="NEGOTIABLE",
+    )
+    assert ride["contribution"]["type"] == "NEGOTIABLE"
+
+    missing = client.patch(
+        f"/api/v1/rides/{ride['id']}",
+        json={"contribution_type": "FIXED"},
+        headers=driver["headers"],
+    )
+    assert missing.status_code == 422, missing.text
+
+    fixed = client.patch(
+        f"/api/v1/rides/{ride['id']}",
+        json={"contribution_type": "FIXED", "contribution_amount": 180},
+        headers=driver["headers"],
+    )
+    assert fixed.status_code == 200, fixed.text
+    assert fixed.json()["contribution"] == {"type": "FIXED", "amount": 180.0, "note": None}

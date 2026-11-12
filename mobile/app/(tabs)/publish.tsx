@@ -73,6 +73,17 @@ export default function PublishScreen() {
   const publishMutation = useMutation({
     mutationFn: () => {
       if (!selectedVehicle) throw new ApiError('VALIDATION_ERROR', 'Select a vehicle first.');
+      const parsedAmount = Number(amount);
+      if (
+        fuel === 'SHARE_FUEL' &&
+        contributionType !== 'NEGOTIABLE' &&
+        (!amount.trim() || !Number.isFinite(parsedAmount) || parsedAmount <= 0)
+      ) {
+        throw new ApiError(
+          'VALIDATION_ERROR',
+          'Enter the amount per passenger (Rs.) for a fixed or expected fuel share.',
+        );
+      }
       const shared = {
         direction,
         departure_at: departureAt.toISOString(),
@@ -308,7 +319,7 @@ export default function PublishScreen() {
                 ) : null}
                 <Banner
                   tone="info"
-                  message="Fuel money is agreed directly between you and your passenger and paid offline. SSUET RideShare never handles payments."
+                  message="Fuel money is paid in cash between you and your passenger. After the trip you confirm the payment, and an invoice is created as evidence. SSUET RideShare never handles payments."
                 />
               </>
             ) : (

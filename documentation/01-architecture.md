@@ -14,7 +14,7 @@
 | Verified community only | Accounts carry `verification_status`; unverified users can browse but cannot publish or request. |
 | One ride = one passenger | Enforced by a **partial unique index** in PostgreSQL, not only by application code (§9). |
 | Privacy by default | Only coarse area labels are public. Exact meeting point + phone are released after a request is accepted. |
-| Fuel money is not platform money | Contributions are an offline agreement between two people. No gateway, no wallet, no commission. |
+| Fuel money is not platform money | Contributions are paid in cash between two people. The driver confirms the payment after the trip, and an invoice is issued as evidence. No gateway, no wallet, no commission. A fixed or expected share must always show its amount. |
 | Offline-first friendliness | Maps are optional: when a key is absent the app falls back to area search. |
 
 ---

@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar, Badge } from '@/components/ui';
-import { formatDeparture, relativeDay, rupees } from '@/lib/format';
+import { formatDeparture, fuelShareLabel, relativeDay } from '@/lib/format';
 import type { Ride } from '@/api/rides';
 import { colors, radius, shadow, spacing, typography } from '@/theme';
 
@@ -74,13 +74,7 @@ export function RideCard({ ride, onPress }: { ride: Ride; onPress: () => void })
           <Badge label="Free ride" tone="success" icon="heart-outline" />
         ) : (
           <Badge
-            label={
-              ride.contribution?.type === 'NEGOTIABLE'
-                ? 'Fuel share · negotiable'
-                : ride.contribution?.amount
-                  ? `Fuel share · ${rupees(ride.contribution.amount)}`
-                  : 'Fuel share'
-            }
+            label={fuelShareLabel(ride.contribution)}
             tone="info"
             icon="wallet-outline"
           />

@@ -188,6 +188,10 @@ def update_ride(db: Session, ride: Ride, actor: User, payload: RideUpdateIn) -> 
         raise ValidationAppError("Choose how the fuel expense is shared: fixed, expected or negotiable.")
     elif ride.contribution_type is ContributionType.NEGOTIABLE:
         ride.contribution_amount = None
+    elif ride.contribution_type in (ContributionType.FIXED, ContributionType.EXPECTED) and not (
+        ride.contribution_amount and ride.contribution_amount > 0
+    ):
+        raise ValidationAppError("Enter the amount per passenger for a fixed or expected fuel share.")
 
     db.commit()
     db.refresh(ride)

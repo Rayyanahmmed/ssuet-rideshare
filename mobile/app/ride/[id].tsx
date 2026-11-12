@@ -9,7 +9,7 @@ import { ApiError } from '@/api/client';
 import { cancelRide, getRide, requestSeat } from '@/api/rides';
 import { Avatar, Badge, Banner, Button, Card, TextField } from '@/components/ui';
 import { WebMap } from '@/components/map/WebMap';
-import { formatDeparture, relativeDay, rupees } from '@/lib/format';
+import { formatDeparture, fuelShareLabel, relativeDay } from '@/lib/format';
 import { useAuthStore } from '@/store/auth';
 import { colors, radius, spacing, typography } from '@/theme';
 import { appAlert } from '@/lib/appAlert';
@@ -211,21 +211,14 @@ export default function RideDetailScreen() {
           <Row
             icon={isFree ? 'heart-outline' : 'wallet-outline'}
             label="Contribution"
-            value={
-              isFree
-                ? 'Free ride'
-                : ride.contribution?.type === 'NEGOTIABLE'
-                  ? 'Fuel share · negotiable'
-                  : ride.contribution?.amount
-                    ? `Fuel share · ${rupees(ride.contribution.amount)}`
-                    : 'Fuel share'
-            }
+            value={isFree ? 'Free ride' : fuelShareLabel(ride.contribution)}
           />
           {!isFree ? (
             <View style={styles.disclaimer}>
               <Text style={styles.disclaimerText}>
-                Fuel contributions are a voluntary agreement between the two members, settled
-                offline. SSUET RideShare takes no payment and no commission.
+                The fuel share is agreed between you and the driver and paid in cash. After the
+                journey the driver confirms the payment, which creates a verified transaction and
+                an invoice as evidence. SSUET RideShare does not hold or move any money.
               </Text>
             </View>
           ) : null}

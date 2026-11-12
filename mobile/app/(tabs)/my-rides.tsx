@@ -19,7 +19,7 @@ import {
 import { listTrips, type Trip } from '@/api/trips';
 import { TripCard } from '@/components/TripCard';
 import { Avatar, Badge, Button, Card, EmptyState } from '@/components/ui';
-import { formatDeparture, relativeDay } from '@/lib/format';
+import { formatDeparture, fuelShareLabel, relativeDay } from '@/lib/format';
 import { colors, radius, spacing, typography } from '@/theme';
 import { appAlert } from '@/lib/appAlert';
 
@@ -356,7 +356,7 @@ function PublishedRideCard({
       </View>
       <Text style={styles.muted}>
         {relativeDay(ride.departure_at)} · {formatDeparture(ride.departure_at).split(' · ')[1]} ·{' '}
-        {ride.fuel_preference === 'FREE' ? 'Free ride' : 'Fuel share'}
+        {ride.fuel_preference === 'FREE' ? 'Free ride' : fuelShareLabel(ride.contribution)}
       </Text>
 
       <View style={styles.actionRow}>

@@ -81,6 +81,10 @@ class RideCreateIn(BaseModel):
                 raise ValueError("Choose how the fuel expense is shared: fixed, expected or negotiable.")
             if self.contribution_type is ContributionType.NEGOTIABLE and self.contribution_amount:
                 raise ValueError("A negotiable contribution cannot have a fixed amount.")
+            if self.contribution_type in (ContributionType.FIXED, ContributionType.EXPECTED) and not (
+                self.contribution_amount and self.contribution_amount > 0
+            ):
+                raise ValueError("Enter the amount per passenger for a fixed or expected fuel share.")
         return self
 
 

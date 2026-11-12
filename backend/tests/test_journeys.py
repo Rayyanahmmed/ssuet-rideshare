@@ -66,7 +66,7 @@ def test_journey_publish_discover_match_chat_complete_review(client, db):
             "departure_at": iso(hours=6),
             "fuel_preference": "SHARE_FUEL",
             "contribution_type": "FIXED",
-            "expected_fuel_share": 150,
+            "contribution_amount": 150,
             "vehicle_id": vehicle["id"],
         },
     )
@@ -80,7 +80,7 @@ def test_journey_publish_discover_match_chat_complete_review(client, db):
         departure_at=iso(hours=5),
         fuel_preference="SHARE_FUEL",
         contribution_type="FIXED",
-        expected_fuel_share=150,
+        contribution_amount=150,
         note="Leaving right after the 4 pm lecture.",
     )
     assert ride["status"] == "OPEN"

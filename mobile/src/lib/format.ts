@@ -39,6 +39,21 @@ export function rupees(amount: number): string {
   return `Rs. ${amount.toLocaleString('en-PK', { maximumFractionDigits: 0 })}`;
 }
 
+/**
+ * Label for a ride's fuel share, always showing the agreed amount when there is one.
+ * Rides published before the amount rule may have no amount; say so instead of hiding it.
+ */
+export function fuelShareLabel(
+  contribution: { type: string; amount: number | null } | null | undefined,
+): string {
+  if (!contribution) return 'Fuel share';
+  if (contribution.type === 'NEGOTIABLE') return 'Fuel share · negotiable';
+  if (contribution.amount && contribution.amount > 0) {
+    return `Fuel share · ${rupees(contribution.amount)} per passenger`;
+  }
+  return 'Fuel share · amount not set';
+}
+
 export function initials(name: string): string {
   return name
     .split(' ')
