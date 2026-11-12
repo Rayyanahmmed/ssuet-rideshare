@@ -101,7 +101,7 @@ export default function RideDetailScreen() {
             <WebMap
               latitude={ride.pickup_point.latitude}
               longitude={ride.pickup_point.longitude}
-              height={180}
+              height={280}
               fit
               pins={[
                 { id: 'pickup', latitude: ride.pickup_point.latitude, longitude: ride.pickup_point.longitude, color: colors.green },
