@@ -50,6 +50,12 @@ export async function resetPassword(token: string, newPassword: string): Promise
   return data;
 }
 
+/** Sends a fresh confirmation email to the signed-in member (rate limited by the API). */
+export async function resendVerificationEmail(): Promise<{ message: string }> {
+  const { data } = await api.post('/auth/resend-verification');
+  return data;
+}
+
 export async function logout(refreshToken: string | null): Promise<void> {
   if (!refreshToken) return;
   try {

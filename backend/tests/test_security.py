@@ -299,7 +299,7 @@ def test_verification_document_url_must_be_http(client, field, value):
     member = register(client)
     response = client.post(
         "/api/v1/users/me/verification",
-        json={"verification_type": "STUDENT_ID", "submitted_value": "SSUET-2026-999", field: value},
+        json={"verification_type": "STUDENT_ID", "submitted_value": "2026F-Bcs-999", field: value},
         headers=member["headers"],
     )
     assert response.status_code == 422

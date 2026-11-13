@@ -5,17 +5,21 @@ import { z } from 'zod';
  * Same rules, same friendly messages — the API still validates everything.
  */
 
+// Members choose their own password: any text, not blank, at most 128 characters.
 const passwordRules = z
   .string()
-  .min(8, 'Use at least 8 characters')
-  .regex(/[A-Za-z]/, 'Include at least one letter')
-  .regex(/[0-9]/, 'Include at least one number');
+  .min(1, 'Enter a password')
+  .max(128, 'Password must be at most 128 characters');
 
 export const loginSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Enter a valid email address'),
   password: z.string().min(1, 'Password is required'),
 });
 export type LoginValues = z.infer<typeof loginSchema>;
+
+/** Fixed SSUET student ID: 4-digit year, F or S, programme letters, 3-digit roll. */
+export const STUDENT_ID_REGEX = /^\d{4}[FS]-[A-Za-z]{2,6}-\d{3}$/i;
+export const STUDENT_ID_HELP = 'Student ID must look like 2023F-Bcs-301 (year, F or S, programme, roll number)';
 
 export const signupSchema = z
   .object({
@@ -29,7 +33,7 @@ export const signupSchema = z
     password: passwordRules,
     confirm_password: z.string(),
     role: z.enum(['STUDENT', 'TEACHER']),
-    university_id: z.string().min(3, 'Student / employee ID is required').max(40),
+    university_id: z.string().trim().min(3, 'Student / employee ID is required').max(40),
     department: z.string().min(2, 'Select your department'),
     home_area: z.string().max(160).optional(),
     semester: z.string().trim().max(2, 'Semester is a number from 1 to 12').optional(),
@@ -54,6 +58,12 @@ export const signupSchema = z
       return semester >= 1 && semester <= 12;
     },
     { path: ['semester'], message: 'Semester must be a whole number from 1 to 12' },
+  )
+  // Students: fixed SSUET roll format, e.g. 2023F-Bcs-301 (year, F/S, programme, 3-digit roll).
+  // Mirrors backend/app/schemas/auth.py STUDENT_ID_PATTERN. Teachers keep free-text employee IDs.
+  .refine(
+    (values) => values.role !== 'STUDENT' || STUDENT_ID_REGEX.test(values.university_id.trim()),
+    { path: ['university_id'], message: STUDENT_ID_HELP },
   );
 export type SignupValues = z.infer<typeof signupSchema>;
 

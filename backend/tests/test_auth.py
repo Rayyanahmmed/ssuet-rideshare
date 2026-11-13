@@ -20,7 +20,7 @@ VALID = {
     "password": "Password123",
     "phone": "+923001234567",
     "role": "STUDENT",
-    "university_id": "SSUET-2022-101",
+    "university_id": "2022F-Bcs-101",
     "department": "Computer Science",
     "semester": 5,
     "home_area": "Gulshan-e-Iqbal",
@@ -74,23 +74,28 @@ def test_register_teacher_creates_teacher_profile(client):
 
 def test_duplicate_email_is_rejected(client):
     assert register(client).status_code == 201
-    response = register(client, phone="+923009999999", university_id="SSUET-2022-999")
+    response = register(client, phone="+923009999999", university_id="2022F-Bcs-999")
     assert response.status_code == 422
     assert response.json()["error"]["details"]["email"] == "already registered"
 
 
 def test_duplicate_phone_is_rejected(client):
     assert register(client).status_code == 201
-    response = register(client, email="other@ssuet.edu.pk", university_id="SSUET-2022-555")
+    response = register(client, email="other@ssuet.edu.pk", university_id="2022F-Bcs-555")
     assert response.status_code == 422
     assert "phone" in response.json()["error"]["details"]
 
 
 @pytest.mark.parametrize(
     "password",
-    ["short1", "lettersonly", "12345678901", "password1"],
+    ["a", "lettersonly", "12345678901", "password1", "1", "   spaces inside   ", "x" * 128],
 )
-def test_weak_passwords_are_rejected(client, password):
+def test_any_reasonable_password_is_accepted(client, password):
+    assert register(client, password=password).status_code == 201
+
+
+@pytest.mark.parametrize("password", ["", "x" * 129])
+def test_empty_or_oversized_passwords_are_rejected(client, password):
     assert register(client, password=password).status_code == 422
 
 
@@ -153,7 +158,7 @@ def test_me_returns_the_owner_view(client):
     me = client.get("/api/v1/auth/me", headers=auth_header(body["access_token"])).json()
     assert me["email"] == "ali.raza@ssuet.edu.pk"
     assert me["phone"] == "+923001234567"      # private, owner-only
-    assert me["university_id"] == "SSUET-2022-101"
+    assert me["university_id"] == "2022F-Bcs-101"
 
 
 def test_refresh_rotates_and_old_token_cannot_be_reused(client):
@@ -321,14 +326,14 @@ def test_email_verification_link_marks_the_address_confirmed(client, monkeypatch
 
 # ------------------------------------------- manual university verification
 def test_manual_verification_submission_moves_account_to_pending(client):
-    body = register(client, email="bilal@gmail.com", university_id="SSUET-2023-777").json()
+    body = register(client, email="bilal@gmail.com", university_id="2023F-Bcs-777").json()
     headers = auth_header(body["access_token"])
 
     response = client.post(
         "/api/v1/users/me/verification",
         json={
             "verification_type": "STUDENT_ID",
-            "submitted_value": "SSUET-2023-777",
+            "submitted_value": "2023F-Bcs-777",
             "document_url": "https://cdn.ssuet-rideshare.test/ids/777.jpg",
             "note": "Card photo attached",
         },
@@ -370,7 +375,7 @@ def test_verified_user_cannot_submit_again(client):
 def test_public_profile_hides_private_fields(client):
     me = register(client).json()
     other = register(
-        client, email="ahmed@ssuet.edu.pk", phone="+923007777777", university_id="SSUET-2022-222"
+        client, email="ahmed@ssuet.edu.pk", phone="+923007777777", university_id="2022F-Bcs-222"
     ).json()
     viewer_headers = auth_header(other["access_token"])
 
@@ -383,7 +388,7 @@ def test_public_profile_hides_private_fields(client):
 
 
 def test_profile_update_cannot_escalate_role_or_verification(client):
-    body = register(client, email="escalate@ssuet.edu.pk", university_id="SSUET-2022-333").json()
+    body = register(client, email="escalate@ssuet.edu.pk", university_id="2022F-Bcs-333").json()
     headers = auth_header(body["access_token"])
 
     response = client.patch(
@@ -407,7 +412,7 @@ def test_profile_update_cannot_escalate_role_or_verification(client):
 
 def test_profile_update_rejects_duplicate_phone(client):
     first = register(client).json()
-    register(client, email="second@ssuet.edu.pk", phone="+923005555555", university_id="SSUET-2022-444")
+    register(client, email="second@ssuet.edu.pk", phone="+923005555555", university_id="2022F-Bcs-444")
     response = client.patch(
         "/api/v1/users/me",
         json={"phone": "+923005555555"},
@@ -420,7 +425,7 @@ def test_profile_update_rejects_duplicate_phone(client):
 def test_block_and_unblock_flow(client):
     me = register(client).json()
     other = register(
-        client, email="blocked@ssuet.edu.pk", phone="+923002222222", university_id="SSUET-2022-555"
+        client, email="blocked@ssuet.edu.pk", phone="+923002222222", university_id="2022F-Bcs-555"
     ).json()
     headers = auth_header(me["access_token"])
     target = other["user"]["id"]

@@ -10,6 +10,16 @@ def auth_header(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+def student_id_for(suffix: str) -> str:
+    """Valid SSUET student ID (YYYYF-Bcs-NNN style) that is unique per suffix.
+
+    The programme part carries six letters derived from the hex suffix, so
+    the (role, university_id) unique constraint never collides in tests.
+    """
+    programme = "".join(chr(ord("a") + int(ch, 16)) for ch in suffix[:6])
+    return f"2023F-{programme.capitalize()}-301"
+
+
 def register(client, **overrides) -> dict:
     """Register a verified student (trusted university domain) and return the payload."""
     suffix = uuid.uuid4().hex[:6]
@@ -19,7 +29,7 @@ def register(client, **overrides) -> dict:
         "password": "Password123",
         "phone": f"+92300{suffix[:7].rjust(7, '1')}",
         "role": "STUDENT",
-        "university_id": f"SSUET-{suffix.upper()}",
+        "university_id": student_id_for(suffix),
         "department": "Computer Science",
         "semester": 5,
         "home_area": "Gulshan-e-Iqbal",

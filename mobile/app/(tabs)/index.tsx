@@ -6,12 +6,13 @@ import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Avatar, Badge, Banner, Button, Card, EmptyState, SectionTitle } from '@/components/ui';
 import { fetchMeta } from '@/api/client';
-import { listRides } from '@/api/rides';
+import { listRides, myRides, myVehicles } from '@/api/rides';
 import { getUnreadCount } from '@/api/notifications';
 import { listTrips } from '@/api/trips';
 import { TripCard } from '@/components/TripCard';
 import { RideCard } from '@/components/RideCard';
 import { RideCardSkeleton } from '@/components/Skeleton';
+import { buildOnboardingSteps, nextOnboardingStep, onboardingProgress } from '@/lib/onboarding';
 import { useAuthStore } from '@/store/auth';
 import { colors, radius, shadow, spacing, typography } from '@/theme';
 
@@ -45,6 +46,15 @@ export default function HomeScreen() {
 
   const firstName = useMemo(() => user?.full_name?.split(' ')[0] ?? 'there', [user?.full_name]);
   const isVerified = user?.verification_status === 'VERIFIED';
+
+  // Setup checklist: same query keys as the onboarding screen, so the cache is shared.
+  const setupVehicles = useQuery({ queryKey: ['vehicles'], queryFn: myVehicles });
+  const setupRides = useQuery({ queryKey: ['rides', 'mine', 'onboarding'], queryFn: () => myRides() });
+  const setupSteps = user
+    ? buildOnboardingSteps(user, setupVehicles.data ?? [], setupRides.data?.length ?? 0)
+    : [];
+  const setupNext = nextOnboardingStep(setupSteps);
+  const setupProgress = onboardingProgress(setupSteps);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -102,6 +112,31 @@ export default function HomeScreen() {
                   : 'Submit your student / employee ID to publish rides and send requests. Tap here.'
               }
             />
+          </Pressable>
+        ) : null}
+
+        {setupNext ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Account setup, ${setupProgress.done} of ${setupProgress.total} done. Next: ${setupNext.title}`}
+            onPress={() => router.push('/onboarding')}
+          >
+            <Card style={styles.setupCard}>
+              <View style={styles.setupRow}>
+                <View style={styles.setupIcon}>
+                  <Ionicons name="list" size={20} color={colors.green} />
+                </View>
+                <View style={styles.setupBody}>
+                  <Text style={styles.setupTitle}>
+                    Finish account setup · {setupProgress.done}/{setupProgress.total}
+                  </Text>
+                  <Text style={styles.setupNext} numberOfLines={1}>
+                    Next: {setupNext.title}
+                  </Text>
+                </View>
+                <Ionicons name="arrow-forward-circle" size={28} color={colors.green} />
+              </View>
+            </Card>
           </Pressable>
         ) : null}
 
@@ -310,4 +345,17 @@ const styles = StyleSheet.create({
   quickLabelHighlight: { color: colors.textInverse },
   section: { gap: spacing.xs },
   seeAll: { color: colors.navy, ...typography.caption, fontWeight: '700' },
+  setupCard: { padding: spacing.md },
+  setupRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  setupIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.greenTint,
+  },
+  setupBody: { flex: 1, gap: 2 },
+  setupTitle: { ...typography.bodyStrong, color: colors.navy },
+  setupNext: { ...typography.caption, color: colors.textMuted },
 });

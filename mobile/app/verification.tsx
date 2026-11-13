@@ -229,7 +229,8 @@ export default function VerificationScreen() {
                 render={({ field, fieldState }) => (
                   <TextField
                     label="ID number"
-                    placeholder="SSUET-2022-101"
+                    placeholder="2023F-Bcs-301"
+                    hint="Students: YEAR, F or S, programme, 3-digit roll (e.g. 2023F-Bcs-301)"
                     icon="card-outline"
                     value={field.value}
                     onChangeText={field.onChange}

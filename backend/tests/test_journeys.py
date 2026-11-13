@@ -20,7 +20,7 @@ from sqlalchemy import select
 from app.models.enums import AccountStatus, TripStatus, UserRole
 from app.models.user import User
 from app.services import maintenance_service
-from tests.helpers import create_vehicle, passenger_setup, publish, register
+from tests.helpers import create_vehicle, passenger_setup, publish, register, student_id_for
 
 
 def iso(**delta) -> str:
@@ -289,7 +289,7 @@ def test_journey_unverified_member_is_gated_until_an_admin_approves(client, admi
             "password": "Password123",
             "phone": f"+92311{suffix[:7].rjust(7, '3')}",
             "role": "STUDENT",
-            "university_id": f"EXT-{suffix.upper()}",
+            "university_id": student_id_for(suffix),
             "department": "Computer Science",
             "semester": 3,
             "home_area": "North Nazimabad",

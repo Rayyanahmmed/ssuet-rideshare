@@ -2,32 +2,49 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
+from pydantic import BaseModel, EmailStr, Field, ValidationInfo, field_validator, model_validator
 
 from app.core.config import settings
 from app.models.enums import UserRole
 from app.schemas.user import UserMeOut
 
+# SSUET student roll number: batch year, F (Fall) or S (Spring), programme, roll number.
+# Example: 2023F-Bcs-301
+STUDENT_ID_PATTERN = re.compile(r"^(\d{4})([FS])-([A-Za-z]{2,6})-(\d{3})$", re.IGNORECASE)
+STUDENT_ID_HELP = "Student ID must look like 2023F-Bcs-301 (batch year, F or S, programme, roll number)."
+
+
+def normalize_student_id(value: str) -> str:
+    """Return the canonical form (2023F-Bcs-301) or raise a friendly error."""
+    match = STUDENT_ID_PATTERN.fullmatch(value.strip())
+    if match is None:
+        raise ValueError(STUDENT_ID_HELP)
+    year, season, programme, roll = match.groups()
+    return f"{year}{season.upper()}-{programme.capitalize()}-{roll}"
+
+
+PASSWORD_MAX_LENGTH = 128
+
 
 def _validate_password_strength(value: str) -> str:
-    """Friendly, explicit rules instead of a single cryptic regex (§21)."""
-    if len(value) < settings.PASSWORD_MIN_LENGTH:
-        raise ValueError(f"Password must be at least {settings.PASSWORD_MIN_LENGTH} characters long.")
-    if not any(c.isalpha() for c in value):
-        raise ValueError("Password must contain at least one letter.")
-    if not any(c.isdigit() for c in value):
-        raise ValueError("Password must contain at least one number.")
-    if value.lower() in {"password1", "passw0rd1", "12345678", "qwerty123"}:
-        raise ValueError("This password is too common. Please choose another one.")
+    """Passwords are user-chosen: any text is accepted, as long as it is not empty or absurdly long.
+
+    Argon2 hashes any length, so the only limits are sanity bounds (not blank, at most 128 characters).
+    """
+    if len(value) < max(1, settings.PASSWORD_MIN_LENGTH):
+        raise ValueError("Please enter a password.")
+    if len(value) > PASSWORD_MAX_LENGTH:
+        raise ValueError(f"Password must be at most {PASSWORD_MAX_LENGTH} characters long.")
     return value
 
 
 class RegisterIn(BaseModel):
     full_name: str = Field(min_length=3, max_length=120)
     email: EmailStr
-    password: str = Field(min_length=8, max_length=64)
+    password: str = Field(min_length=1, max_length=128)
     phone: str = Field(min_length=10, max_length=20, examples=["+923001234567"])
     role: UserRole = UserRole.STUDENT
     university_id: str = Field(min_length=3, max_length=40, examples=["SSUET-2022-101"])
@@ -56,6 +73,14 @@ class RegisterIn(BaseModel):
             raise ValueError("must not be blank")
         return cleaned
 
+    @field_validator("university_id")
+    @classmethod
+    def _student_id_format(cls, value: str, info: ValidationInfo) -> str:
+        """Students get a fixed roll-number format; teacher employee IDs stay free text."""
+        if info.data.get("role", UserRole.STUDENT) is UserRole.STUDENT:
+            return normalize_student_id(value)
+        return value
+
     @field_validator("role")
     @classmethod
     def _no_self_service_admin(cls, value: UserRole) -> UserRole:
@@ -73,7 +98,7 @@ class RegisterIn(BaseModel):
 
 class LoginIn(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=128)
 
 
 class TokenPairOut(BaseModel):
@@ -98,7 +123,7 @@ class ForgotPasswordIn(BaseModel):
 
 class ResetPasswordIn(BaseModel):
     token: str = Field(min_length=20)
-    new_password: str = Field(min_length=8, max_length=64)
+    new_password: str = Field(min_length=1, max_length=128)
 
     @field_validator("new_password")
     @classmethod
@@ -111,8 +136,8 @@ class VerifyEmailIn(BaseModel):
 
 
 class ChangePasswordIn(BaseModel):
-    current_password: str = Field(min_length=1, max_length=64)
-    new_password: str = Field(min_length=8, max_length=64)
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=1, max_length=128)
 
     @field_validator("new_password")
     @classmethod

@@ -19,7 +19,7 @@ const FIELD_LABELS: Record<string, string> = {
   phone: 'Phone number',
   password: 'Password',
   confirm_password: 'Confirm password',
-  university_id: 'Student ID',
+  university_id: 'Student roll number (ID)',
   department: 'Department',
   semester: 'Semester',
   home_area: 'Home area',
@@ -156,7 +156,7 @@ export default function SignupScreen() {
               name="email"
               render={({ field, fieldState }) => (
                 <TextField
-                  label="Email address"
+                  label="Email address (your SSUET email)"
                   placeholder="yourname@ssuet.edu.pk"
                   icon="mail-outline"
                   autoCapitalize="none"
@@ -191,10 +191,16 @@ export default function SignupScreen() {
               name="university_id"
               render={({ field, fieldState }) => (
                 <TextField
-                  label={role === 'STUDENT' ? 'Student ID' : 'Employee ID'}
-                  placeholder={role === 'STUDENT' ? 'SSUET-2022-101' : 'SSUET-EMP-1001'}
+                  label={role === 'STUDENT' ? 'Student roll number (ID)' : 'Employee ID'}
+                  placeholder={role === 'STUDENT' ? '2023F-Bcs-301' : 'SSUET-EMP-1001'}
+                  hint={
+                    role === 'STUDENT'
+                      ? 'Format: YEAR, F or S, programme, 3-digit roll. Example: 2023F-Bcs-301'
+                      : undefined
+                  }
                   icon="card-outline"
                   autoCapitalize="characters"
+                  maxLength={role === 'STUDENT' ? 16 : 40}
                   value={field.value}
                   onChangeText={field.onChange}
                   onBlur={field.onBlur}
@@ -305,14 +311,14 @@ export default function SignupScreen() {
               render={({ field, fieldState }) => (
                 <TextField
                   label="Password"
-                  placeholder="At least 8 characters"
+                  placeholder="Choose a password"
                   icon="lock-closed-outline"
                   secureTextEntry
                   value={field.value}
                   onChangeText={field.onChange}
                   onBlur={field.onBlur}
                   error={fieldState.error?.message ?? fieldErrors.password}
-                  hint="At least 8 characters, including one letter and one number."
+                  hint="Any password you can remember. Keep it private."
                 />
               )}
             />

@@ -132,7 +132,7 @@ class Settings(BaseSettings):
     MIN_MINUTES_BETWEEN_DRIVER_RIDES: int = 30
     # Radius default for "nearby" discovery
     DEFAULT_DISCOVERY_RADIUS_KM: float = 25.0
-    PASSWORD_MIN_LENGTH: int = Field(default=8, ge=8, le=64)
+    PASSWORD_MIN_LENGTH: int = Field(default=1, ge=1, le=128)
     EMAIL_VERIFICATION_TOKEN_MINUTES: int = 60 * 24
     PASSWORD_RESET_TOKEN_MINUTES: int = 30
     RIDE_AUTO_EXPIRE_GRACE_MINUTES: int = 60

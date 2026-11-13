@@ -122,6 +122,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
           <Stack.Screen name="verification" options={{ presentation: 'modal' }} />
           <Stack.Screen name="vehicles" />
+          <Stack.Screen name="onboarding" />
           <Stack.Screen name="ride/[id]" />
           <Stack.Screen name="trip/[id]" />
           <Stack.Screen name="chat/[id]" />

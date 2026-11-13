@@ -93,7 +93,7 @@ export default function ResetPasswordScreen() {
               render={({ field, fieldState }) => (
                 <TextField
                   label="New password"
-                  placeholder="At least 8 characters, letters and numbers"
+                  placeholder="Choose a new password"
                   icon="lock-closed-outline"
                   secureTextEntry
                   value={field.value}

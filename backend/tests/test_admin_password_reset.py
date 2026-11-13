@@ -85,3 +85,17 @@ def test_members_cannot_issue_codes(client, admin, db):
 
     response = client.post(f"{ADMIN}/users/{user.id}/password-reset-code", headers=auth_header(token))
     assert response.status_code in (401, 403)
+
+
+def test_reset_accepts_any_password_and_member_can_log_in(client, admin, db):
+    """Password policy is relaxed: a short, letters-only password works end to end."""
+    email = _member(client)
+    user = _user(db, email)
+    code = client.post(f"{ADMIN}/users/{user.id}/password-reset-code", headers=admin["headers"]).json()["code"]
+
+    reset = client.post("/api/v1/auth/reset-password", json={"token": code, "new_password": "abc"})
+    assert reset.status_code == 200, reset.text
+
+    login = client.post("/api/v1/auth/login", json={"email": email, "password": "abc"})
+    assert login.status_code == 200, login.text
+    assert client.post("/api/v1/auth/login", json={"email": email, "password": "wrong"}).status_code == 401
