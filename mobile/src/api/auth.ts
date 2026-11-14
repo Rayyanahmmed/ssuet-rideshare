@@ -50,6 +50,12 @@ export async function resetPassword(token: string, newPassword: string): Promise
   return data;
 }
 
+/** Confirms the email address with the single-use token from the confirmation email. */
+export async function verifyEmail(token: string): Promise<SessionUser> {
+  const { data } = await api.post<SessionUser>('/auth/verify-email', { token });
+  return data;
+}
+
 /** Sends a fresh confirmation email to the signed-in member (rate limited by the API). */
 export async function resendVerificationEmail(): Promise<{ message: string }> {
   const { data } = await api.post('/auth/resend-verification');
