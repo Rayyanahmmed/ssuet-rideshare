@@ -43,6 +43,9 @@ jobs:
         working-directory: mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          # Give Java/Gradle more memory (fixes "OutOfMemoryError: Metaspace")
+          JAVA_TOOL_OPTIONS: "-Xmx4g -XX:MaxMetaspaceSize=1g"
+          GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=1g"
         run: |
           eas build --local --platform android --profile apk --non-interactive --output "$RUNNER_TEMP/ssuet-rideshare.apk"
 
