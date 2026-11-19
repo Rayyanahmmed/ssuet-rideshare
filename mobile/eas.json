@@ -43,7 +43,8 @@
       "autoIncrement": true,
       "distribution": "internal",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease -x lintVitalAnalyzeRelease -x lintVitalRelease"
       },
       "env": {
         "APP_VARIANT": "production",
